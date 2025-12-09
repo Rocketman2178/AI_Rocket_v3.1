@@ -13,6 +13,7 @@ import { supabase } from '../lib/supabase';
 import { AstraGuidedSetupModal } from './AstraGuidedSetupModal';
 import { FolderSelectionWrapper } from './FolderSelectionWrapper';
 import { syncAllFolders } from '../lib/manual-folder-sync';
+import { GoogleDriveReauthGuide } from './GoogleDriveReauthGuide';
 
 interface GoogleDriveSettingsProps {
   fromLaunchPrep?: boolean;
@@ -49,6 +50,8 @@ export const GoogleDriveSettings: React.FC<GoogleDriveSettingsProps> = ({ fromLa
   const [needsScopeUpgrade, setNeedsScopeUpgrade] = useState(false);
   const [manualSyncing, setManualSyncing] = useState(false);
   const [syncResult, setSyncResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [needsReauthorization, setNeedsReauthorization] = useState(false);
+  const [previousConnectionEmail, setPreviousConnectionEmail] = useState<string>('');
 
   // Temporary state for folder selection
   const [selectedMeetingsFolder, setSelectedMeetingsFolder] = useState<FolderInfo | null>(null);
@@ -191,6 +194,28 @@ export const GoogleDriveSettings: React.FC<GoogleDriveSettingsProps> = ({ fromLa
               .maybeSingle();
             const adminName = adminUser?.name || adminUser?.email?.split('@')[0] || 'Team Admin';
             setConnectedAdminName(adminName);
+            setNeedsReauthorization(false);
+          } else {
+            // Check if there was a previous connection that is now inactive/expired
+            const { data: inactiveConnection } = await supabase
+              .from('user_drive_connections')
+              .select('google_account_email, token_expires_at, is_active')
+              .eq('team_id', teamId)
+              .eq('is_active', false)
+              .order('updated_at', { ascending: false })
+              .limit(1)
+              .maybeSingle();
+
+            if (inactiveConnection) {
+              setNeedsReauthorization(true);
+              setPreviousConnectionEmail(inactiveConnection.google_account_email || '');
+            } else {
+              // Also check localStorage for reauth flag (set when connection was cleared)
+              const reauthFlag = localStorage.getItem('google_drive_needs_reauth');
+              if (reauthFlag === 'true') {
+                setNeedsReauthorization(true);
+              }
+            }
           }
         }
       }
@@ -626,6 +651,17 @@ export const GoogleDriveSettings: React.FC<GoogleDriveSettingsProps> = ({ fromLa
 
       {!connection ? (
         <div className="space-y-4">
+          {/* Show Reauthorization Guide for admins who need to reconnect */}
+          {isAdmin && needsReauthorization && !teamConnection && (
+            <GoogleDriveReauthGuide
+              userEmail={previousConnectionEmail}
+              onReconnectStarted={() => {
+                localStorage.removeItem('google_drive_needs_reauth');
+              }}
+              fromLaunchPrep={fromLaunchPrep}
+            />
+          )}
+
           {teamConnection ? (
             // Team already has a connection
             teamConnection.user_id !== currentUserId ? (
@@ -862,19 +898,21 @@ export const GoogleDriveSettings: React.FC<GoogleDriveSettingsProps> = ({ fromLa
               </div>
             </div>
           ) : (
-            // Admin user, no existing connection - show connect button
-            <>
-              <p className="text-sm text-gray-400">
-                Connect your Google Drive to automatically sync and vectorize documents from your Meeting Recordings and Strategy Documents folders.
-              </p>
-              <button
-                onClick={handleConnect}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors flex items-center space-x-2"
-              >
-                <HardDrive className="w-4 h-4" />
-                <span>Connect Google Drive</span>
-              </button>
-            </>
+            // Admin user, no existing connection - show connect button (only if not showing reauth guide)
+            !needsReauthorization && (
+              <>
+                <p className="text-sm text-gray-400">
+                  Connect your Google Drive to automatically sync and vectorize documents from your Meeting Recordings and Strategy Documents folders.
+                </p>
+                <button
+                  onClick={handleConnect}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors flex items-center space-x-2"
+                >
+                  <HardDrive className="w-4 h-4" />
+                  <span>Connect Google Drive</span>
+                </button>
+              </>
+            )
           )}
         </div>
       ) : (
