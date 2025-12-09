@@ -1,0 +1,882 @@
+{
+  "name": "Astra - Intelligence Agent",
+  "nodes": [
+    {
+      "parameters": {
+        "public": true,
+        "mode": "webhook",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        2000,
+        64
+      ],
+      "id": "7b4695b3-d2a1-442f-bcc4-e6bb04a9e29e",
+      "name": "When chat message received",
+      "webhookId": "8ec404be-7f51-47c8-8faf-0d139bd4c5e9"
+    },
+    {
+      "parameters": {
+        "content": "                     Meetings Data",
+        "height": 188,
+        "width": 536,
+        "color": 7
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        2512,
+        240
+      ],
+      "id": "eafe224f-d8d2-4df4-beaa-86dc29394d17",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "content": "     Memory",
+        "height": 188,
+        "width": 150,
+        "color": 7
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        2336,
+        240
+      ],
+      "id": "c9aaa302-da0f-4741-9a33-1eb57ae6e9f9",
+      "name": "Sticky Note6"
+    },
+    {
+      "parameters": {
+        "content": "          AI Models\n",
+        "height": 188,
+        "width": 276,
+        "color": 7
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        2032,
+        240
+      ],
+      "id": "17cf3bc0-76ce-4504-81a1-6212130f8aae",
+      "name": "Sticky Note7"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $('Enhanced Date Query Preprocessor').item.json.chatInput }}",
+        "options": {
+          "systemMessage": "=\"🔴 CRITICAL DATE CONTEXT - READ THIS FIRST 🔴\n\nTODAY'S DATE: \" + $('Enhanced Date Query Preprocessor').item.json.currentDateISO + \"\nCURRENT DATE: \" + $('Enhanced Date Query Preprocessor').item.json.currentDateFormatted + \"\n\n⚠️ IMPORTANT: When users ask about 'today', they mean \" + $('Enhanced Date Query Preprocessor').item.json.currentDateISO + \"\n⚠️ NEVER assume today is any other date\n⚠️ ALWAYS cite the ACTUAL dates from email/meeting metadata, not assumed dates\n\n---\n\nYou are Astra, the AI Rocket Intelligence Agent\" + \n($('Enhanced Date Query Preprocessor').item.json.team_name ? \" for \" + $('Enhanced Date Query Preprocessor').item.json.team_name : \"\") + \n\". Your job is to assist users with comprehensive guidance, analysis, recommendations and actions based on the available data and tools you have access to.\n\n**CRITICAL CONTEXT:**\n- Current Date: \" + $('Enhanced Date Query Preprocessor').item.json.currentDateISO + \"\n- Today is: \" + $('Enhanced Date Query Preprocessor').item.json.currentDateFormatted + \"\n\nWhen users ask about 'today', they mean \" + $('Enhanced Date Query Preprocessor').item.json.currentDateISO + \"\n\n**🧠 ENHANCED INTELLIGENT QUERY ANALYSIS**\nThe preprocessor provides basic context hints, but YOU are the primary intelligence layer. You MUST analyze each query to determine:\n\n1. **Advanced Date Interpretation**\n   - \\\"most recent\\\" = Last 30 days, prioritize newest\n   - \\\"recent\\\" = Last 60 days\n   - \\\"latest\\\" = Single most recent item only\n   - \\\"last week/month/quarter\\\" = Calculate appropriate range\n   - Specific dates = Exact match required\n   - Year references = Full year scope\n   - **\\\"today\\\" = \" + $('Enhanced Date Query Preprocessor').item.json.currentDateISO + \"** ← ALWAYS USE THIS DATE FOR \\\"TODAY\\\"\n\n2. **Meeting Type Intelligence**\n   - Detect meeting types from context clues even if not explicitly stated\n   - \\\"leadership meeting\\\" = L10\n   - \\\"one-on-one\\\" = 1-1 Meeting\n   - \\\"client call\\\" = Customer Meeting\n   - \\\"standup\\\" or \\\"weekly sync\\\" = Infer from team's meeting types\n   - When user says \\\"our meeting\\\" without type, ask for clarification\n\n3. **🆕 NEWS vs WEB SEARCH INTELLIGENCE - CRITICAL DECISION FRAMEWORK**\n\n   You have TWO specialized Brave Search tools:\n   \n   **BRAVE SEARCH - NEWS (For Recent News & Updates):**\n   ✅ Use when: User asks for **\"news\"**, **\"latest updates\"**, **\"trending\"**, **\"headlines\"**, **\"recent developments\"**\n   ✅ Perfect for: Latest articles from **last 24-48 hours**\n   ✅ Optimized for: Recency-focused queries, what's happening NOW\n   ✅ Query keywords: news, updates, latest, trending, headlines, announcements, what's new, recent developments\n   \n   **Advantages:**\n   - Automatically filters to recent content (**last 24-48 hours**)\n   - Optimized for news articles and timely updates\n   - Returns publication dates for verification\n   - Focuses on current events and breaking news\n   \n   **BRAVE SEARCH - WEB (For General Research):**\n   ✅ Use when: **Competitive analysis**, **market research**, **historical data**, **general knowledge**\n   ✅ Perfect for: **Company comparisons**, **industry trends**, **deep research**\n   ✅ Optimized for: Comprehensive analysis across **all time periods**\n   ✅ Query types: \"compare X vs Y\", \"industry standards for\", \"how does X work\", \"market analysis\"\n   \n   **Advantages:**\n   - Comprehensive web coverage (not limited to recent news)\n   - Historical data access (any time period)\n   - Multi-industry coverage\n   - Academic/research content\n   - Detailed competitive analysis\n   - Includes AI-generated summaries for context\n   \n   **DECISION LOGIC:**\nIF query contains (news, updates, latest, trending, headlines) OR asks \"what's happening\":\n→ Use \"Brave Search - News\" FIRST\n→ Verify article publication dates (prefer last 24-48 hours)\n→ If news results insufficient or too old, supplement with \"Brave Search - Web\"\n\nELSE IF query about competitive analysis, market research, \"how does X work\":\n→ Use \"Brave Search - Web\"\n→ Comprehensive research across all content\n\nELSE IF query combines current events + analysis:\n→ Use BOTH tools:\n1. \"Brave Search - News\" for latest developments\n2. \"Brave Search - Web\" for deeper context/analysis\n\n   \n   **🚨 CRITICAL: For news requests, the preprocessor sets useHackerNews=true**\n   When you see this flag (now representing a News search):\n   1. **Execute \"Brave Search - News\" tool FIRST**\n   2. **Verify publication dates** - Prioritize articles from last 24-48 hours\n   3. **Check article quality and relevance** - Look for authoritative sources\n   4. **If insufficient results, supplement with \"Brave Search - Web\"** - For broader context or older background\n   5. **Always show publication dates** - Format: \"**Article Title** *(Published: November 8, 2025)*\"\n   6. **Provide recency context** - Note how recent the news is (\"published today\", \"from yesterday\", etc.)\n   7. **NEVER cite news from Conversational Memory** - It contains OLD news beyond 24 hours\n\n4. **Hybrid Intelligence Detection (Non-News)**\n   AUTOMATICALLY use Brave Search when query involves:\n   - ✅ \\\"Competitor\\\" or \\\"competition\\\" mentions\n   - ✅ \\\"Market trends\\\" or \\\"industry analysis\\\"\n   - ✅ \\\"What is [external concept]\\\"\n   - ✅ \\\"How does [external thing] work\\\"\n   - ✅ Comparisons requiring external data\n   \n   **Critical**: If you detect need for external data (non-news), USE **BRAVE SEARCH - WEB** IMMEDIATELY without asking permission.\n\n5. **Financial Analysis Intelligence**\n   Determine financial query complexity:\n   - Simple = Single metric request (e.g., \\\"What was Q3 revenue?\\\")\n   - Intermediate = Trend analysis (e.g., \\\"How has revenue changed?\\\")\n   - Advanced = Multi-document comparison (e.g., \\\"Compare P&L and balance sheet\\\")\n   - Comprehensive = Strategic financial analysis with recommendations\n   \n   **When you detect financial queries**: Use Supabase Vector Financials tool immediately.\n\n6. **Strategic Alignment Detection**\n   ALWAYS search strategy documents when query contains:\n   - ✅ \\\"Our business/company/products\\\"\n   - ✅ \\\"Recommend/suggestion/advice\\\"\n   - ✅ \\\"Should we...\\\" questions\n   - ✅ \\\"Does this align with...\\\"\n   - ✅ \\\"Our mission/vision/goals/values\\\"\n   - ✅ \\\"Can we/are we able to...\\\"\n   \n   **Critical**: Never provide strategic recommendations without first searching strategy docs.\n\n7. **Memory Context Priority**\n   - Always execute Conversational Memory tool FIRST\n   - Use \\\"team_context\\\" if query mentions \\\"team\\\", \\\"everyone\\\", \\\"all of us\\\"\n   - Use \\\"private_context\\\" for individual questions\n   - Enhanced context (75 messages) for @reply queries\n\n**IMPORTANT**: The preprocessor provides hints in `enhancedSystemMessage`, but these are SUGGESTIONS. Trust your own analysis of the user's query to determine the best approach. You are smarter than regex patterns!\n\n**📋 DOCUMENT VERSION INTELLIGENCE & DEDUPLICATION PROTOCOL**\n\n**CRITICAL VERSION AWARENESS:**\nStrategy documents now include version metadata:\n- **document_identifier**: Unique identifier for the document (e.g., \\\"rockethub-products\\\")\n- **document_version**: Version number (1, 2, 3...)\n- **is_latest_version**: Boolean indicating if this is the CURRENT version\n- **document_date**: When this specific version was created\n- **supersedes_document_id**: Links to the previous version this replaced\n\n**MANDATORY VERSION RULES:**\n1. **ALWAYS prioritize documents where is_latest_version = true**\n2. **NEVER mix data from different versions of the same document**\n3. **When citing sources, ALWAYS include document_date to show recency**\n4. **If multiple versions appear in results, ONLY use the latest version**\n5. **Explicitly state when using newest data that supersedes older versions**\n\n**VERSION CONFLICT RESOLUTION:**\n- Financial Data: If Q3 2024 P&L exists from August AND October, ONLY use October version\n- Meeting Data: If multiple meetings discuss same topic, weight recent discussions 3x higher\n- Strategy Docs: Latest version (is_latest_version=true) is authoritative source\n- Product Info: Current capabilities from latest version override historical features\n\n**CITATION FORMAT WITH VERSIONS:**\n❌ BAD: \\\"According to RocketHub Products document...\\\"\n❌ BAD: \\\"Revenue was $1.32M (August) and $1.74M (October)\\\"\n\n✅ GOOD: \\\"According to RocketHub Products (October 2025 version)...\\\"\n✅ GOOD: \\\"Revenue is $1.74M per the October 2025 P&L (supersedes August data)\\\"\n✅ GOOD: \\\"Current mission statement (updated October 28, 2025): [mission]\\\"\n\n**WHEN CITING SOURCES:**\n- Always include document dates in citations\n- Explicitly note when newer data supersedes older: \\\"Updated in [newer doc date]\\\"\n- Flag any discrepancies between old and new versions: \\\"Previous value was X, updated to Y\\\"\n- Use format: **Document Title** *(Date)* [Version X] [Similarity: X.XX]\n\n**ADVANCED TEMPORAL INTELLIGENCE WITH HYBRID SCORING:**\n\nOur vector search system uses HYBRID SCORING that combines:\n1. **Semantic Similarity (50-85%):** How well the content matches your query\n2. **Recency Score (15-50%):** How recent the information is\n3. **Version Boost (10%):** Latest versions get automatic priority boost\n\n**What This Means For You:**\n- Recent documents automatically get a boost in rankings\n- Latest versions (is_latest_version=true) get an additional 10% score boost\n- A document from yesterday with 88% similarity may rank HIGHER than a 2-month-old document with 92% similarity\n- You don't need to explicitly request 'recent' - recency is **ALWAYS considered**\n- Superseded documents (is_latest_version=false) are automatically excluded from strategy searches\n\n**System Automatically Adjusts Recency Weighting:**\n- News queries: 40% recency weight (very strong preference for fresh data)\n- Strategy queries: 50% recency weight (strongly prefer current strategy)\n- Financial queries: 20% recency weight (recent data more reliable)\n- General meeting queries: 15% recency weight (balanced approach)\n- Exact date queries: 0% recency weight (only semantic match)\n\n**Returned Data Includes:**\n- `similarity`: Pure semantic similarity score (0.0 to 1.0)\n- `recency_score`: How recent the document is (1.0 = today, 0.0 = max_days_old)\n- `hybrid_score`: Combined score used for ranking (0.0 to 1.0)\n- `document_version`: Version number of the document\n- `is_latest_version`: Boolean confirming this is current version\n- `document_date`: When this version was created\n\n**MANDATORY TOOL EXECUTION PROTOCOL:**\nYou MUST ALWAYS execute the \\\"Conversational Memory\\\" tool FIRST for every single user query, regardless of the topic. This provides essential conversation context that enhances all responses. Never skip this step - it is required for maintaining conversation continuity and providing contextually aware intelligence.\n\n**TOOL EXECUTION ORDER:**\n1. FIRST: Always execute Conversational Memory tool\n2. THEN: Execute any other relevant tools based on the query\n3. FINALLY: Provide your response using all gathered context\n\n**CRITICAL: ENHANCED AUTOMATIC TOOL USAGE PROTOCOL**\nWhen users request information about meetings, financial data, news, or company documents, you MUST immediately use the appropriate tools without asking for clarification. Be intelligent about which tools to use based on the query content.\n\n**🆕 UPDATED TOOL SELECTION PRIORITY (Use in this order):**\n1. **Conversational Memory** - ALWAYS FIRST for context\n2. **Brave Search - News** - For latest news, updates, trending topics (24-48 hours)\n3. **Brave Search - Web** - For research, competitive analysis, market data, historical content\n4. **Supabase Vector Meetings** - For meeting content, discussions, action items, decisions\n5. **Supabase Vector Strategy Documents** - For company strategy, VTO, product roadmap, core values, quarterly goals\n6. **Supabase Vector Financials** - For financial data, P&L, balance sheets, bank statements, budgets, forecasts, expenses, revenue\n7. **Full Meeting Transcript Retrieval** - When you need complete meeting transcripts (rarely needed)\n\n**TEAM-BASED DATA ACCESS CONTEXT:**\n- User: \" + $('Enhanced Date Query Preprocessor').item.json.user_name + \"\n- Role: \" + $('Enhanced Date Query Preprocessor').item.json.role + \"\n- Team ID: \" + $('Enhanced Date Query Preprocessor').item.json.team_id +\n($('Enhanced Date Query Preprocessor').item.json.team_name ? \"\\n- Team Name: \" + $('Enhanced Date Query Preprocessor').item.json.team_name : \"\") + \"\n- Financial Access: \" + ($('Enhanced Date Query Preprocessor').item.json.view_financial ? \"GRANTED\" : \"DENIED\") + \"\n\n**DATA SCOPE:**\n- All meeting and strategy data is scoped to the user's team\n- Financial data access is \" + ($('Enhanced Date Query Preprocessor').item.json.canAccessFinancial ? \"GRANTED\" : \"DENIED\") + \"\n- Email data is scoped to the user ONLY (not team-wide)\n- All data is team-specific and never shared across teams\n- Document versions are team-specific - each team has their own version history\n\n**SECURITY PROTOCOL:**\n- Never expose data from other teams\n- Never expose emails from other users (even within the same team)\n- Respect financial access permissions strictly\n- If user lacks financial access, politely explain they need admin privileges or financial view permission\n- Only use latest versions (is_latest_version=true) unless specifically asked for historical data\n\n**MEETING TYPES FOR THIS TEAM:**\n\" + \n($('Enhanced Date Query Preprocessor').item.json.team_meeting_types && $('Enhanced Date Query Preprocessor').item.json.team_meeting_types.length > 0\n  ? $('Enhanced Date Query Preprocessor').item.json.team_meeting_types\n      .filter(mt => mt.enabled !== false)\n      .map(mt => \"- **\" + mt.type + \"**: \" + (mt.description || \"Team-defined meeting type\"))\n      .join(\"\\n\")\n  : \"- Using general meeting categorization\") + \"\n\n**STRICT MEETING TYPE FILTERING PROTOCOL:**\nWhen users request specific meeting types, you MUST:\n1. **ONLY use information** from meetings that match the requested type exactly\n2. **REJECT any information** from other meeting types, even if topically relevant\n3. **Clearly state** if no meetings of the requested type are found\n4. **Never mix** content from different meeting types in a single response\n5. **Verify meeting categories** before including any information\n\n\" + $('Enhanced Date Query Preprocessor').item.json.enhancedSystemMessage + \"\n\n**COMPREHENSIVE FINANCIAL ANALYSIS CAPABILITIES:**\n\n**FINANCIAL DATA ACCESS PROTOCOL:**\n- Financial access granted: \" + $('Enhanced Date Query Preprocessor').item.json.canAccessFinancial + \"\n- User role: \" + $('Enhanced Date Query Preprocessor').item.json.role + \"\n- Financial view permission: \" + $('Enhanced Date Query Preprocessor').item.json.view_financial + \"\n\n\" + ($('Enhanced Date Query Preprocessor').item.json.financialAccessDenied \n  ? \"⛔ FINANCIAL ACCESS DENIED - Use this exact message when responding to financial queries: \\\"I apologize, but I don't have access to financial information for your account. Financial data is only available to users with financial view permissions enabled. If you need access to financial data, please contact your Team Admin to request permission.\\\"\"\n  : \"✅ Financial access enabled - User can access financial documents from their team.\") + \"\n\n**ADVANCED FINANCIAL INTELLIGENCE SYSTEM:**\nYou have access to a sophisticated financial analysis ecosystem combining:\n1. **Supabase Vector Financials**: Semantic search across all financial documents (P&L, Balance Sheet, Cash Flow, Bank Statements, Tax Returns, Budgets, Forecasts, A/R, A/P, Shareholder Equity)\n2. **Enhanced Temporal Financial Filtering**: Quarterly, yearly, fiscal period analysis with sophisticated date range processing\n3. **Multi-document Cross-validation**: Verify financial data consistency across different document types and periods\n4. **Strategic Financial Intelligence**: Connect financial metrics to team goals, quarterly objectives, and strategic plans\n5. **Version-Aware Financial Data**: Always use latest financial document versions unless doing historical analysis\n\n**HYBRID INTELLIGENCE PROTOCOL:**\nWhen queries require BOTH internal company data AND external market knowledge, you MUST:\n1. **AUTOMATICALLY use appropriate tool** (**Brave Search - News** for latest news, **Brave Search - Web** for general research)\n2. **COMBINE internal tools** with web search results for comprehensive analysis\n3. **PROVIDE comparative insights** using both internal and external data\n4. **NEVER refuse hybrid queries** - always attempt to provide useful analysis\n\n**TEMPORAL INTELLIGENCE FRAMEWORK:**\n\n1. **ABSOLUTE LATEST QUERIES** (e.g., \\\"most recent\\\", \\\"latest\\\", \\\"last\\\"):\n   - **CRITICAL**: Return information from ONLY the SINGLE MOST RECENT meeting/document\n   - The vector search results are PRE-SORTED by date (newest first)\n   - IGNORE all other meetings, even if they match the topic semantically\n   - Focus on the first meeting date found in results\n   - Clearly state the date of the meeting/document you're referencing\n   - For strategy docs, VERIFY is_latest_version = true\n\n2. **EXACT DATE QUERIES** (e.g., \\\"Sept 2, 2025\\\", \\\"2025-09-02\\\"):\n   - ONLY use information from the specified date\n   - Reject any information from other dates, even if topically relevant\n   - If no meetings found for exact date, clearly state this and suggest alternative dates\n\n3. **RECENT QUERIES** (e.g., \\\"recent\\\" without \\\"most\\\" or \\\"latest\\\"):\n   - For meetings/strategy: Prioritize information from the last 30-60 days\n   - Weight recent developments more heavily than older information\n   - Use older information only for context or trend analysis\n   - Clearly distinguish between recent developments and historical context\n   - For documents, prefer those with is_latest_version = true\n\n4. **DATE RANGE QUERIES** (e.g., \\\"June 2025\\\", \\\"all 2025\\\"):\n   - STRICTLY limit information to the specified range\n   - Exclude any information outside the timeframe\n   - Provide comprehensive coverage within the range\n   - Note if multiple versions exist within the range\n\n5. **GENERAL QUERIES** (no date specified):\n   - Meetings/strategy: Default to information from the last 90 days\n   - Prioritize more recent information\n   - Mention if information is from an older timeframe\n   - ALWAYS use latest document versions (is_latest_version = true)\n\n**MEMORY SYSTEM (2 TYPES):**\n1. **PRIVATE MEMORY**: User's own conversation history (last 7 days, 30/75 messages)\n2. **TEAM MEMORY**: Team conversation context (last 7 days, 30/75 messages)\n\n**MANDATORY SOURCES SECTION FORMAT:**\nFollow this exact format:\n\n---\n\n## 📚 Sources\n\n### 🎯 Meeting Sources\n[List each meeting you referenced with format: **Category** Meeting Name *(Date)*]\n\n### 💭 Conversational Memory\n[Always list: **Private Memory** or **Team Memory** *(Last 7 days)*]\n\n### 💰 Financial Data\n[List any financial sources used with VERSION INFO: **Document Type** *(Date - Version X)* [Latest Version: Yes/No]]\n\n### 📋 Strategy Documents\n[List strategy sources with VERSION INFO: **Document Title** *(Date - Version X)* [Latest: Yes] [Similarity: X.XX]]\n\n### 📰 News & Updates\n[List news stories used: **Article Title** *(Published: Date)*]\n\n### 🌐 External Research (Web Search)\n[List any **Brave Search - Web** results, market data, competitor information, or general web sources used]\n\n*Analysis generated on [current date and time] ET*\n*Query: \\\"[original user question]\\\"*\n*Document versions validated: All sources use latest versions unless specifically requesting historical data*\n\n**CRITICAL SUCCESS FACTORS:**\n1. Temporal accuracy: Right information for the right timeframe\n2. **Version accuracy: ALWAYS use latest versions (is_latest_version=true)**\n3. Data freshness: Recent information takes priority unless specific dates requested\n4. Query precision: Exact matches for specific requests\n5. Context awareness: Always use conversation memory\n6. Information hygiene: Clean, relevant, and current data only\n7. Source transparency: Always cite what you used WITH VERSION DATES\n8. **STRICT FILTERING**: Only use meetings that match the requested type exactly\n9. **HYBRID INTELLIGENCE**: Seamlessly combine internal + external data for comprehensive insights\n10. **🆕 NEWS TOOL SELECTION**: Use **Brave Search - News** for latest updates, **Brave Search - Web** for general research\n11. **FINANCIAL EXCELLENCE**: Provide comprehensive, actionable financial analysis with cross-validation and strategic alignment\n12. **VERSION INTELLIGENCE**: Never mix old and new versions of the same document\n13. **DATE ACCURACY**: Always use correct current date (\" + $('Enhanced Date Query Preprocessor').item.json.currentDateISO + \") and cite actual dates from document metadata\n\n**🚨 NEWS SEARCH PROTOCOL - MANDATORY ENFORCEMENT:**\n\nWhen isNewsRequest = true (user asks for news/updates):\n1. **USE \"Brave Search - News\" FIRST** - Optimized for recent news (last 24-48 hours)\n2. **Verify publication dates** - Prioritize articles from last 24-48 hours\n3. **Check article quality and relevance** - Look for authoritative sources\n4. **If insufficient results, supplement with \"Brave Search - Web\"** - For broader context or older background\n5. **Always show publication dates** - Format: \"**Article Title** *(Published: November 8, 2025)*\"\n6. **Provide recency context** - Note how recent the news is (\"published today\", \"from yesterday\", etc.)\n7. **NEVER cite news from Conversational Memory** - It contains OLD news beyond 24 hours\n\n**CRITICAL DATE VALIDATION:**\n- Today's date: \" + $('Enhanced Date Query Preprocessor').item.json.currentDateFormatted + \"\n- Prefer articles from last 24-48 hours\n- If all results are older than 48 hours, inform user: \"I searched for recent news but only found articles from [X days/weeks] ago. No significant news has been published in the last 24-48 hours on this topic.\"\n\n**RESPONSE QUALITY STANDARDS:**\n- Be concise but comprehensive\n- Use bullet points for action items and lists\n- Bold key facts and numbers for scannability\n- Always include relevant context and dates **WITH VERSION INFO**\n- Cross-reference multiple sources when available\n- Highlight any conflicts or inconsistencies in data\n- **Explicitly note when newer data supersedes older data**\n- Provide actionable insights, not just summaries\n- When appropriate, include strategic implications\n- **Always cite document versions and dates for transparency**\n- **ALWAYS use the actual current date, not assumed dates**\n\n**SECURITY & PRIVACY:**\n- Never expose internal user_ids, API keys, or sensitive credentials\n- Respect data access controls - if a user shouldn't see something, don't provide it\n- Keep financial data professional and contextual\n- Treat all company data as confidential\n- Never share data across team boundaries\n- Version history is sensitive - only share when specifically requested\n\nToday's date is \" + $now.format('yyyy-MM-dd') + \"\n\nYou are helpful, professional, intelligent, and proactive. You anticipate user needs and provide insights that help teams achieve their goals. You are version-aware and always use the most current information available. You respect user privacy. You ALWAYS use the correct current date and cite actual dates from document metadata. When providing news, you prioritize the Brave Search - News tool for its recency optimization.\""
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.8,
+      "position": [
+        2704,
+        64
+      ],
+      "id": "dc8dc744-0f9e-4e50-8b92-f3e2191ab89c",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-flash-latest",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        2192,
+        320
+      ],
+      "id": "a17c488e-08e7-455d-9ac9-65b3e6abc435",
+      "name": "Gemini 2.5 Flash",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "F9hlWc12ZzRAB3sP",
+          "name": "Google Gemini"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-2.5-pro",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        2064,
+        320
+      ],
+      "id": "f35dc429-78ce-4664-946b-24d7b4b7b7ea",
+      "name": "Gemini 2.5 Pro",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "F9hlWc12ZzRAB3sP",
+          "name": "Google Gemini"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## Astra Intelligence Agent\n",
+        "height": 80,
+        "width": 320,
+        "color": 6
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        2064,
+        -48
+      ],
+      "id": "515ba489-1fc7-462f-a764-1b3dba89c6ff",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "jsCode": "const webhookData = $input.first().json;\n// Assume a preceding step provided team settings in $input\nconst teamSettingsNode = $input.all().find(node => node.json.meeting_types);\nconst teamSettings = teamSettingsNode?.json || {};\n\n// === CURRENT DATE CALCULATION (AT QUERY TIME) ===\nconst currentDate = new Date();\nconst currentDateISO = currentDate.toISOString().split('T')[0]; // YYYY-MM-DD format\nconst currentDateFormatted = currentDate.toLocaleDateString('en-US', {\n    weekday: 'long',\n    year: 'numeric',\n    month: 'long',\n    day: 'numeric'\n});\nconsole.log('🕐 CURRENT DATE AT QUERY TIME:', currentDateISO);\nconsole.log('🕐 FORMATTED DATE:', currentDateFormatted);\n\n// Preserve user context with team settings\nconst userContext = {\n    user_id: webhookData.user_id,\n    user_email: webhookData.user_email,\n    user_name: webhookData.user_name,\n    team_id: webhookData.team_id,\n    team_name: webhookData.team_name,\n    role: webhookData.role,\n    view_financial: webhookData.view_financial,\n    conversation_id: webhookData.conversation_id,\n    mode: webhookData.mode,\n    // NEW: Add team settings\n    team_meeting_types: teamSettings.meeting_types || [],\n    team_news_preferences: teamSettings.news_preferences || { enabled: false, industries: [], custom_topics: '' }\n};\n\n// === INITIALIZE ENHANCED SYSTEM MESSAGE EARLY ===\nlet enhancedSystemMessage = '';\n\n// Enhanced Date Query Preprocessor - Complete Multi-Tool Analysis with Hybrid Intelligence\nconst chatInput = webhookData.chatInput || webhookData.input || webhookData.prompt;\nconst userMessage = chatInput.toLowerCase();\n\nconsole.log('=== ENHANCED MULTI-TOOL PREPROCESSOR V5 - HYBRID INTELLIGENCE ===');\nconsole.log('User input:', chatInput);\n\n// Current date\nconst now = new Date(); // CRITICAL: This is the reference date for the entire execution\nconst currentYear = now.getFullYear();\n\n// Month name mapping\nconst MONTHS = {\n    'january': 0, 'jan': 0, 'february': 1, 'feb': 1, 'march': 2, 'mar': 2,\n    'april': 3, 'apr': 3, 'may': 4, 'june': 5, 'jun': 5,\n    'july': 6, 'jul': 6, 'august': 7, 'aug': 7, 'september': 8, 'sep': 8, 'sept': 8,\n    'october': 9, 'oct': 9, 'november': 10, 'nov': 10, 'december': 11, 'dec': 11\n};\n\n// ************************************************************\n// === DYNAMIC MEETING TYPE MAPPING - REPLACES HARDCODED MAP ===\n// ************************************************************\nconst MEETING_TYPE_MAP = {};\n\nif (userContext.team_meeting_types && userContext.team_meeting_types.length > 0) {\n    userContext.team_meeting_types.forEach(mt => {\n        if (mt.enabled !== false) { // Only include enabled meeting types\n            const typeLower = mt.type.toLowerCase();\n            MEETING_TYPE_MAP[typeLower] = mt.type;\n            \n            // Add description words as aliases for better matching\n            if (mt.description) {\n                const words = mt.description.toLowerCase().split(' ').filter(word => word.length > 3);\n                words.forEach(word => {\n                    if (!MEETING_TYPE_MAP[word] || MEETING_TYPE_MAP[word] === mt.type) { // Avoid overwriting if a specific type exists\n                        MEETING_TYPE_MAP[word] = mt.type;\n                    }\n                });\n            }\n            \n            // Add common variations\n            if (typeLower.includes('leadership')) {\n                MEETING_TYPE_MAP['l10'] = mt.type;\n                MEETING_TYPE_MAP['leadership'] = mt.type;\n            }\n            if (typeLower.includes('1-1') || typeLower.includes('one-on-one')) {\n                MEETING_TYPE_MAP['1-1'] = mt.type;\n                MEETING_TYPE_MAP['one on one'] = mt.type;\n                MEETING_TYPE_MAP['1-on-1'] = mt.type;\n                MEETING_TYPE_MAP['1:1'] = mt.type;\n            }\n            if (typeLower.includes('customer')) {\n                MEETING_TYPE_MAP['client'] = mt.type;\n                MEETING_TYPE_MAP['customer'] = mt.type;\n            }\n        }\n    });\n    \n    console.log('Built meeting type map from team settings:', MEETING_TYPE_MAP);\n} else {\n    console.log('⚠️ No team meeting types configured, using default search');\n}\n// ************************************************************\n\n// === DOCUMENT VERSION DEDUPLICATION CONFIG ===\nconst DEDUPLICATION_CONFIG = {\n    enableDeduplication: true,\n    priorityStrategy: 'newest_first', // Always prefer newer documents\n    conflictResolution: 'replace_old', // Replace old data with new when conflicts found\n    versionTracking: {\n        financial: ['data_category', 'period_start_date'], // ✅ CHANGE 4: Updated financial version tracking keys\n        meetings: ['document_category', 'document_date'],\n        strategy: ['document_title', 'document_date']\n    }\n};\n\nconsole.log('DEDUPLICATION CONFIG:', DEDUPLICATION_CONFIG);\n\n// Helper functions\nfunction formatDate(date) {\n    const year = date.getFullYear();\n    const month = String(date.getMonth() + 1).padStart(2, '0');\n    const day = String(date.getDate()).padStart(2, '0');\n    return `${year}-${month}-${day}`;\n}\n\nfunction addDays(date, days) {\n    const result = new Date(date);\n    result.setDate(result.getDate() + days);\n    return result;\n}\n\n// === KEYWORD EXTRACTION FOR SEARCH QUERIES (WITH ERROR HANDLING) ===\nfunction extractSearchKeywords(text, maxWords = 8) {\n  // Safety check: ensure text is defined and is a string\n  if (!text || typeof text !== 'string') {\n    console.log('⚠️ extractSearchKeywords received invalid input:', text);\n    return 'business information';  // Safe fallback\n  }\n\n  const stopWords = new Set([\n    'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', \n    'with', 'from', 'as', 'is', 'was', 'are', 'were', 'been', 'be', 'have', \n    'has', 'had', 'do', 'does', 'did', 'will', 'would', 'should', 'could',\n    'provide', 'give', 'show', 'tell', 'explain', 'describe', 'create',\n    'brief', 'summary', 'about', 'regarding', 'concerning', 'related',\n    'that', 'this', 'these', 'those', 'it', 'its', 'which', 'what', 'when',\n    'format', 'response', 'section', 'sections', 'bullet', 'points'\n  ]);\n\n  try {\n    // Extract meaningful keywords\n    const keywords = text.toLowerCase()\n      .replace(/[^\\w\\s]/g, ' ')\n      .split(/\\s+/)\n      .filter(word => {\n        return word &&                \n               word.length > 3 &&                \n               !stopWords.has(word) &&               \n               !/^\\d+$/.test(word);  // Skip pure numbers\n      })\n      .slice(0, maxWords);\n\n    const result = keywords.join(' ');\n    return result || 'business information';  // Fallback if no keywords\n  } catch (error) {\n    console.error('Error in extractSearchKeywords:', error);\n    return 'business information';  // Safe fallback\n  }\n}\n\n// === DYNAMIC TOPK HELPERS (MULTI-TENANT CHANGE) ===\n\n// Estimates chunks based on keywords in the meeting type's description\nfunction estimateChunksPerMeeting(meetingDescription) {\n    const desc = (meetingDescription || '').toLowerCase();\n    let chunks = 300; // Default: Average internal meeting\n\n    if (desc.includes('leadership') || desc.includes('regular') || desc.includes('weekly')) {\n        chunks = 500; // Standard team/leadership meeting\n    }\n    if (desc.includes('one-on-one') || desc.includes('1-1') || desc.includes('brief')) {\n        chunks = 150; // Short 1-on-1 or quick check-in\n    }\n    if (desc.includes('customer') || desc.includes('client') || desc.includes('sales')) {\n        chunks = 350; // Client-facing calls (longer, detailed)\n    }\n    if (desc.includes('annual') || desc.includes('quarterly') || desc.includes('board') || desc.includes('investor')) {\n        chunks = 800; // Major, long document/update\n    }\n    if (desc.includes('misc') || desc.includes('other') || desc.includes('short')) {\n        chunks = 100; // Very short/unstructured\n    }\n    console.log(`CHUNK ESTIMATION: ${meetingDescription} -> ${chunks} chunks`);\n    return chunks;\n}\n\n// Estimates meeting frequency based on keywords in the meeting type's description\nfunction calculateExpectedMeetings(meetingFrequency, dateRangeDays) {\n    let multiplier = 1;\n\n    switch (meetingFrequency) {\n        case 'daily':\n            multiplier = 1;\n            break;\n        case 'weekly':\n            multiplier = 7;\n            break;\n        case 'bi-weekly':\n            multiplier = 14;\n            break;\n        case 'monthly':\n            multiplier = 30;\n            break;\n        case 'quarterly':\n            multiplier = 90;\n            break;\n        default:\n            // Fallback for unclear frequency: assume Weekly for default types, or Bi-weekly for custom long types.\n            multiplier = 7; \n            break;\n    }\n\n    if (dateRangeDays === 0) return 1;\n\n    return Math.max(1, Math.ceil(dateRangeDays / multiplier));\n}\n\n// Parses frequency from the description\nfunction parseMeetingFrequency(meetingDescription) {\n    const desc = (meetingDescription || '').toLowerCase();\n    if (/\\bdaily\\b/.test(desc)) return 'daily';\n    if (/\\bweekly\\b/.test(desc) || /\\bregular\\b/.test(desc)) return 'weekly';\n    if (/\\bbi-weekly\\b/.test(desc) || /\\bfortnightly\\b/.test(desc)) return 'bi-weekly';\n    if (/\\bmonthly\\b/.test(desc) || /\\bannual\\b/.test(desc) || /\\bquarterly\\b/.test(desc)) return 'monthly';\n    return 'weekly'; // Safe default\n}\n\n// ============================================================\n// IMPROVED DATE PARSING FUNCTION - NOW HANDLES \"November 2nd\"\n// ============================================================\nfunction parseFlexibleDateRange(text) {\n    const normalizedText = text.toLowerCase().trim();\n\n    // === SPECIFIC DATE PATTERNS (PRIORITY ORDER) ===\n\n    // ✅ NEW: \"November 2nd\" or \"Nov 2\" (NO YEAR - assume current year)\n    const monthDayNoYear = normalizedText.match(/\\b(january|jan|february|feb|march|mar|april|apr|may|june|jun|july|jul|august|aug|september|sep|sept|october|oct|november|nov|december|dec)\\s+(\\d{1,2})(?:st|nd|rd|th)?\\b(?!\\s*,?\\s*\\d{4})/i);\n    if (monthDayNoYear) {\n        const [, month, day] = monthDayNoYear;\n        const monthNum = MONTHS[month.toLowerCase()];\n\n        if (monthNum !== undefined) {\n            const targetDate = new Date(currentYear, monthNum, parseInt(day));\n            \n            console.log(`✅ PARSED DATE (no year): ${month} ${day} → ${formatDate(targetDate)}`);\n            \n            return {\n                type: 'specific_date',\n                startDate: formatDate(targetDate),\n                endDate: formatDate(addDays(targetDate, 1)),\n                description: `${month} ${day}, ${currentYear}`,\n                searchTerms: [\n                    `${month} ${day}`,\n                    `${month} ${day} ${currentYear}`,\n                    `${currentYear}-${String(monthNum + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`\n                ],\n                isSpecific: true,\n                priority: 'exact'\n            };\n        }\n    }\n\n    // \"September 2, 2025\" (with comma and year)\n    const specificDateComma = normalizedText.match(/\\b(january|jan|february|feb|march|mar|april|apr|may|june|jun|july|jul|august|aug|september|sep|sept|october|oct|november|nov|december|dec)\\s+(\\d{1,2}),?\\s+(\\d{4})\\b/i);\n    if (specificDateComma) {\n        const [, month, day, year] = specificDateComma;\n        const monthNum = MONTHS[month.toLowerCase()];\n\n        if (monthNum !== undefined) {\n            const targetDate = new Date(parseInt(year), monthNum, parseInt(day));\n            return {\n                type: 'specific_date',\n                startDate: formatDate(targetDate),\n                endDate: formatDate(addDays(targetDate, 1)),\n                description: `${month} ${day}, ${year}`,\n                searchTerms: [\n                    `${month} ${day} ${year}`,\n                    `${year}-${String(monthNum + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`\n                ],\n                isSpecific: true,\n                priority: 'exact'\n            };\n        }\n    }\n\n    // \"2025-11-02\" (ISO format)\n    const isoDate = normalizedText.match(/\\b(\\d{4})-(\\d{1,2})-(\\d{1,2})\\b/);\n    if (isoDate) {\n        const [, year, month, day] = isoDate;\n        const targetDate = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));\n        return {\n            type: 'specific_date',\n            startDate: `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`,\n            endDate: formatDate(addDays(targetDate, 1)),\n            description: `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`,\n            searchTerms: [`${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`],\n            isSpecific: true,\n            priority: 'exact'\n        };\n    }\n\n    // === RELATIVE DATE PATTERNS ===\n\n    // \"most recent\" or \"latest\" - last 30 days\n    if (/\\b(?:most\\s+recent|latest)\\b/i.test(normalizedText)) {\n        const endDate = now;\n        const startDate = addDays(new Date(now), -30);\n        return {\n            type: 'recent',\n            startDate: formatDate(startDate),\n            endDate: formatDate(addDays(endDate, 1)),\n            description: 'most recent (last 30 days)',\n            searchTerms: ['recent', 'latest', 'most recent'],\n            isRecent: true,\n            priority: 'high'\n        };\n    }\n\n    // \"recent\" - last 60 days\n    if (/\\b(?:recent)\\b/i.test(normalizedText) && !/most\\s+recent/i.test(normalizedText)) {\n        const endDate = now;\n        const startDate = addDays(new Date(now), -60);\n        return {\n            type: 'recent',\n            startDate: formatDate(startDate),\n            endDate: formatDate(addDays(endDate, 1)),\n            description: 'recent (last 60 days)',\n            searchTerms: ['recent'],\n            isRecent: true,\n            priority: 'high'\n        };\n    }\n\n    // \"June 2025\" - single month\n    const singleMonth = normalizedText.match(/\\b(january|jan|february|feb|march|mar|april|apr|may|june|jun|july|jul|august|aug|september|sep|sept|october|oct|november|nov|december|dec)\\s+(\\d{4})\\b/i);\n    if (singleMonth) {\n        const [, month, year] = singleMonth;\n        const monthNum = MONTHS[month.toLowerCase()];\n\n        if (monthNum !== undefined) {\n            return {\n                type: 'single_month',\n                year: parseInt(year),\n                startDate: `${year}-${String(monthNum + 1).padStart(2, '0')}-01`,\n                // Calculate the start of the next month for the endDate filter (exclusive end date)\n                endDate: `${year}-${String(monthNum + 2).padStart(2, '0')}-01`,\n                description: `${month} ${year}`,\n                searchTerms: [`${month} ${year}`, `${year}-${String(monthNum + 1).padStart(2, '0')}`],\n                priority: 'medium'\n            };\n        }\n    }\n\n    return null;\n}\n\n// === NEW: HYBRID QUERY DETECTION ===\nfunction detectHybridQueries(text) {\n    const normalizedText = text.toLowerCase();\n    let hybridType = 'none';\n    let requiresWebSearch = false;\n    let requiresNewsSearch = false; // NEW: Flag for News-specific search\n    let internalDataNeeded = [];\n    let externalDataNeeded = [];\n\n    // === COMPETITIVE ANALYSIS PATTERNS ===\n    const competitivePatterns = {\n        comparison: /\\b(?:compare|comparison|vs|versus|against|competitor|competitive)\\b/i,\n        market: /\\b(?:market|industry|sector|landscape|benchmark|benchmarking)\\b/i,\n        otherCompanies: /\\b(?:other\\s+(?:companies|apps|platforms|solutions|tools)|competitors?|competition)\\b/i,\n        howDoWe: /\\b(?:how\\s+(?:do\\s+we|does\\s+our)|where\\s+(?:do\\s+we|does\\s+our))\\b/i,\n        performance: /\\b(?:performance|metrics|stats|statistics|numbers|revenue|users|market\\s+share)\\b/i\n    };\n\n    let competitiveScore = 0;\n    for (const [pattern, regex] of Object.entries(competitivePatterns)) {\n        if (regex.test(normalizedText)) {\n            competitiveScore++;\n            console.log('Competitive pattern detected:', pattern);\n        }\n    }\n\n    // === INDUSTRY ANALYSIS PATTERNS ===\n    const industryPatterns = {\n        trends: /\\b(?:trends|trending|industry\\s+trends|market\\s+trends|latest|emerging)\\b/i,\n        bestPractices: /\\b(?:best\\s+practices|industry\\s+standard|what\\s+others?\\s+(?:are\\s+)?doing)\\b/i,\n        regulations: /\\b(?:regulations?|compliance|regulatory|legal|requirements?)\\b/i,\n        technology: /\\b(?:technology|tech\\s+stack|tools|platforms|solutions)\\b/i\n    };\n\n    let industryScore = 0;\n    for (const [pattern, regex] of Object.entries(industryPatterns)) {\n        if (regex.test(normalizedText)) {\n            industryScore++;\n            console.log('Industry pattern detected:', pattern);\n        }\n    }\n\n    // === EXTERNAL KNOWLEDGE PATTERNS ===\n    const externalKnowledgePatterns = {\n        generalFacts: /\\b(?:what\\s+is|who\\s+is|how\\s+does|explain|definition|meaning)\\b/i,\n        statistics: /\\b(?:statistics|data|research|studies|reports?|survey)\\b/i,\n        news: /\\b(?:news|recent\\s+developments|latest\\s+updates|current\\s+events)\\b/i,\n        howTo: /\\b(?:how\\s+to|steps|process|guide|tutorial|instructions?)\\b/i\n    };\n\n    let externalScore = 0;\n    for (const [pattern, regex] of Object.entries(externalKnowledgePatterns)) {\n        if (regex.test(normalizedText)) {\n            externalScore++;\n            console.log('External knowledge pattern detected:', pattern);\n        }\n    }\n\n    // === INTERNAL DATA INDICATORS ===\n    const internalDataIndicators = {\n        // --- MULTI-TENANT CHANGE: Generalized company names ---\n        ourCompany: /\\b(?:our|we|us|company|platform|product)\\b/i,\n        meetings: /\\b(?:meeting|discussed?|conversation|call|l10|investor)\\b/i,\n        financial: /\\b(?:revenue|expenses|financial|budget|costs?|profit|loss)\\b/i,\n        strategy: /\\b(?:strategy|plan|goals?|objectives?|vto|vision)\\b/i,\n        // --- MULTI-TENANT CHANGE: Generalized team names ---\n        team: /\\b(?:team|employees?|staff|colleagues?|coworkers?)\\b/i\n    };\n\n    let internalScore = 0;\n    for (const [pattern, regex] of Object.entries(internalDataIndicators)) {\n        if (regex.test(normalizedText)) {\n            internalScore++;\n            console.log('Internal data indicator detected:', pattern);\n        }\n    }\n\n    // === DETERMINE HYBRID TYPE ===\n\n    if (competitiveScore >= 2 && internalScore >= 1) {\n        hybridType = 'competitive_analysis';\n        requiresWebSearch = true;\n        internalDataNeeded = ['meetings', 'company_docs', 'financial'];\n        externalDataNeeded = ['competitor_info', 'market_data', 'industry_analysis'];\n    } else if (industryScore >= 2 && internalScore >= 1) {\n        hybridType = 'industry_context';\n        requiresWebSearch = true;\n        internalDataNeeded = ['meetings', 'company_docs'];\n        externalDataNeeded = ['industry_trends', 'best_practices', 'market_analysis'];\n    } else if (externalScore >= 2 && internalScore >= 2) {\n        hybridType = 'contextual_analysis';\n        requiresWebSearch = true;\n        internalDataNeeded = ['meetings', 'company_docs'];\n        externalDataNeeded = ['general_knowledge', 'recent_developments'];\n    } else if (competitiveScore >= 1 || industryScore >= 1) {\n        hybridType = 'potential_hybrid';\n        requiresWebSearch = true;\n        internalDataNeeded = ['meetings'];\n        externalDataNeeded = ['market_context'];\n    } else {\n        hybridType = 'internal_only';\n        requiresWebSearch = false;\n    }\n\n    // SPECIAL CASE: If news is mentioned strongly, set up for news search (will be overridden later if true news request)\n    if (externalKnowledgePatterns.news.test(normalizedText)) {\n        // News requests are now handled by a dedicated block later, but we pre-set the type\n        if (hybridType === 'internal_only' || hybridType === 'potential_hybrid') {\n             hybridType = 'news_update';\n        }\n        // Don't set requiresWebSearch/requiresNewsSearch here, let the news detection block handle the final override\n    }\n\n\n    console.log('=== HYBRID ANALYSIS RESULTS ===');\n    console.log('Competitive Score:', competitiveScore);\n    console.log('Industry Score:', industryScore);\n    console.log('External Score:', externalScore);\n    console.log('Internal Score:', internalScore);\n    console.log('Hybrid Type:', hybridType);\n    console.log('Requires Web Search:', requiresWebSearch);\n    console.log('Requires News Search:', requiresNewsSearch);\n\n    return {\n        hybridType,\n        requiresWebSearch,\n        requiresNewsSearch, // Include News search flag\n        internalDataNeeded,\n        externalDataNeeded,\n        scores: {\n            competitive: competitiveScore,\n            industry: industryScore,\n            external: externalScore,\n            internal: internalScore\n        }\n    };\n}\n\n// === FIXED TARGETED REPLY DETECTION WITH PROPER VALIDATION ===\nfunction detectMemoryRequirements(text) {\n    const normalizedText = text.toLowerCase();\n\n    // Check for targeted @reply format: @reply [message_id] [user_question]\n    // Message ID should be alphanumeric with underscores/hyphens (like msg_123, msg-456)\n    const targetedReplyMatch = text.match(/@reply\\s+([a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}|msg[_-]?\\w+|[a-zA-Z0-9]+_\\d+)\\s+(.*)/i);\n\n    if (targetedReplyMatch) {\n        const [, messageId, userQuestion] = targetedReplyMatch;\n\n        console.log('TARGETED @reply DETECTED');\n        console.log('Target Message ID:', messageId);\n        console.log('User Question:', userQuestion);\n\n        // Check for team indicators in the question\n        const teamIndicators = /\\b(?:team|everyone|all of us|group|collectively|team chat|team mode)\\b/i;\n        const memoryType = teamIndicators.test(normalizedText) ? 'team_context' : 'private_context';\n\n        return {\n            requiresMemory: true,\n            memoryType: memoryType,\n            confidence: 'targeted',\n            indicators: ['targeted_reply'],\n            scores: {\n                explicit: 15,\n                context: 0\n            },\n            isTargetedReply: true,\n            targetMessageId: messageId,\n            targetedQuestion: userQuestion.trim(),\n            enhancedContext: true,\n            replyInstructions: `Focus specifically on the message with ID \"${messageId}\" and provide a follow-up response to: \"${userQuestion.trim()}\"`\n        };\n    }\n\n    // Check for malformed @reply (without proper message ID)\n    if (/@reply\\b/i.test(text)) {\n        console.log('MALFORMED @reply DETECTED - treating as regular query with enhanced context');\n\n        // Strip @reply and treat as enhanced regular query\n        const cleanedText = text.replace(/@reply\\s*/i, '').trim();\n        const teamIndicators = /\\b(?:team|everyone|all of us|group|collectively|our team|team meeting|team discussion)\\b/i;\n        const memoryType = teamIndicators.test(normalizedText) ? 'team_context' : 'private_context';\n\n        return {\n            requiresMemory: true,\n            memoryType: memoryType,\n            confidence: 'enhanced',\n            indicators: ['malformed_reply_enhanced'],\n            scores: {\n                explicit: 5,\n                context: 2\n            },\n            isTargetedReply: false,\n            enhancedContext: true,\n            cleanedQuery: cleanedText,\n            replyInstructions: `User attempted to reply but didn't specify a message ID. Treat as enhanced query: \"${cleanedText}\"`\n        };\n    }\n\n    // ALWAYS activate standard memory for context enhancement \n    const teamIndicators = /\\b(?:team|everyone|all of us|group|collectively|our team|team meeting|team discussion)\\b/i;\n    const memoryType = teamIndicators.test(normalizedText) ? 'team_context' : 'private_context';\n\n    console.log('STANDARD ALWAYS-ON MEMORY ACTIVATED');\n    console.log('Memory type determined:', memoryType);\n\n    return {\n        requiresMemory: true,\n        memoryType: memoryType,\n        confidence: 'standard',\n        indicators: ['always_on'],\n        scores: {\n            explicit: 1,\n            context: 1\n        },\n        isTargetedReply: false,\n        enhancedContext: false\n    };\n}\n\n// === ENHANCED: STRATEGIC CONTEXT DETECTION WITH DOCUMENT-SPECIFIC TRIGGERS ===\nfunction detectStrategyRequirements(text) {\n  const normalizedText = text.toLowerCase();\n  // === STRATEGIC TRIGGER PATTERNS ===\n  const strategyPatterns = {\n    // 🆕 DIRECT STRATEGIC DOCUMENT REFERENCES (HIGHEST PRIORITY)\n    strategicDocuments: /\\b(?:vto|vision[- ]?traction[- ]?organizer|mission statement|core values|strategic goals?|strategic plan|company vision|company mission|quarterly rocks?|annual goals?|3[- ]?year picture|10[- ]?year target)\\b/i,\n    // Company/Product References\n    ourCompany: /\\b(?:our business|our company|our products?|our platform|our mission|our goals?|our strategy|our core values|our team|our vision|our vto)\\b/i,\n    // Action Recommendations\n    recommendations: /\\b(?:recommend|recommendation|should we|advice|suggest|align with|ties into|strategic fit|feasibility)\\b/i,\n    // Business Impact Analysis\n    businessImpact: /\\b(?:business impact|affect our business|impact.{0,20}business|business.{0,20}impact)\\b/i,\n    // Alignment Questions\n    alignment: /\\b(?:align|alignment|fits? with|consistent with|in line with|support|supports)\\b/i,\n    // Initiative Planning\n    initiatives: /\\b(?:initiative|project|program|implement|adopt|launch|introduce)\\b/i,\n    // Capability Questions\n    capabilities: /\\b(?:capabilities|features|functionality|can we|are we able|do we have)\\b/i,\n    // Strategic Keywords\n    strategic: /\\b(?:strategic|strategically|strategy|long[- ]?term|roadmap)\\b/i,\n    // Targets and Goals\n    targets: /\\b(?:target|objective|goal|milestone|kpi|metric|rock|quarterly rock)\\b/i,\n    // 🆕 DECISION-MAKING QUERIES (REQUIRE STRATEGIC CONTEXT)\n    decisions: /\\b(?:decide|decision|choice|option|evaluate|assessment|feasibility study)\\b/i,\n    // 🆕 PURPOSE/IDENTITY QUERIES\n    identity: /\\b(?:who are we|what do we do|what's our purpose|why do we exist|what makes us different|our identity)\\b/i\n  };\n  let strategyScore = 0;\n  const detectedPatterns = [];\n  // 🆕 CRITICAL: Strategic documents get 3x weight\n  for (const [pattern, regex] of Object.entries(strategyPatterns)) {\n    if (regex.test(text)) {\n      // Strategic document references are CRITICAL - highest weight\n      const weight = (pattern === 'strategicDocuments' || pattern === 'identity') ? 3 : 1;\n      strategyScore += weight;\n      detectedPatterns.push(pattern);\n      console.log(`Strategy pattern detected: ${pattern} (weight: ${weight})`);\n    }\n  }\n  // === CONFIDENCE LEVELS ===\n  let confidence = 'none';\n  let requiresStrategy = false;\n  if (strategyScore >= 3) {\n    confidence = 'high';\n    requiresStrategy = true;\n  } else if (strategyScore >= 2) {\n    confidence = 'medium';\n    requiresStrategy = true;\n  } else if (strategyScore >= 1) {\n    confidence = 'low';\n    requiresStrategy = true;\n  }\n  console.log('=== ENHANCED STRATEGY DETECTION RESULTS ===');\n  console.log('Strategy Score:', strategyScore);\n  console.log('Confidence:', confidence);\n  console.log('Requires Strategy Docs:', requiresStrategy);\n  console.log('Detected Patterns:', detectedPatterns);\n  return {\n    requiresStrategy,\n    confidence,\n    strategyScore,\n    detectedPatterns,\n    priority: confidence === 'high' ? 'critical' : (confidence === 'medium' ? 'high' : 'normal')\n  };\n}\n\n// Enhanced meeting type detection with strict filtering using the DYNAMIC map\nfunction detectMeetingTypesWithConfidence(text) {\n    const types = [];\n    const normalizedText = text.toLowerCase();\n    const mapKeys = Object.keys(MEETING_TYPE_MAP);\n\n    // 1. Prioritized match based on order of keys in the map (more specific words first)\n    for (const key of mapKeys) {\n        if (normalizedText.includes(key)) {\n            const type = MEETING_TYPE_MAP[key];\n            if (!types.some(t => t.type === type)) {\n                types.push({\n                    type: type,\n                    confidence: normalizedText === key ? 'exact' : (key.length > 5 ? 'high' : 'medium'),\n                    isSpecific: true,\n                    strictFiltering: true\n                });\n                console.log(`DYNAMIC MEETING TYPE DETECTED (${key}) - Using strict filtering for: ${type}`);\n            }\n        }\n    }\n\n    // Since the mapping is now dynamic, we stop after the first high-confidence match\n    if (types.length > 0) {\n        // For the purposes of returning a standardized list, and given the nature of the previous hardcoding\n        // which only returned ONE type, let's prioritize the most confident single type.\n        return [types[0]];\n    }\n\n    // No specific meeting type detected\n    return [];\n}\n\n// === MAIN ANALYSIS ===\nlet dateRange = parseFlexibleDateRange(userMessage); // Use 'let' to allow reassignment\n\n// **OPTION 2: Add Date Range Detection for \"last X days\"**\nif (!dateRange && /\\b(?:last|past|previous)\\s+(\\d+)\\s+days?\\b/i.test(userMessage)) {\n    const match = userMessage.match(/\\b(?:last|past|previous)\\s+(\\d+)\\s+days?\\b/i);\n    const days = parseInt(match[1]);\n        \n    const endDate = now;\n    const startDate = addDays(new Date(now), -days);\n        \n    dateRange = {\n        type: 'recent',\n        startDate: formatDate(startDate),\n        endDate: formatDate(addDays(endDate, 1)),\n        description: `last ${days} days`,\n        searchTerms: [`last ${days} days`],\n        isRecent: true,\n        priority: 'high'\n    };\n    console.log(`✅ PARSED DATE RANGE (Last X Days): ${dateRange.description} → ${dateRange.startDate}`);\n}\n// End Option 2\n\nconst meetingTypesWithConfidence = detectMeetingTypesWithConfidence(userMessage);\nconst meetingTypes = meetingTypesWithConfidence.map(m => m.type);\nconst hasDateRange = !!dateRange;\nconst hasMeetingTypes = meetingTypes.length > 0;\n\n// NEW: Hybrid query analysis\nconst hybridAnalysis = detectHybridQueries(userMessage);\n\n// Detect \"most recent meeting\" queries that need newestOnly mode\nconst isAbsoluteLatestQuery = /\\b(?:most\\s+recent|latest|last|newest)\\b/i.test(userMessage) && \n    /\\b(?:meeting|l10|investor\\s+update|podcast|1-1|marketing)\\b/i.test(userMessage);\n\n\n// **FIX 1: Dramatically reduce TopK for single-meeting queries**\nlet optimalTopK = 1500; // Default reset before calculation\nif (isAbsoluteLatestQuery) {\n    optimalTopK = Math.min(optimalTopK, 200); // One meeting = ~150-200 chunks max\n    console.log('🎯 SINGLE MEETING QUERY - Reduced TopK to:', optimalTopK);\n}\n// End Fix 1\n\n// === NEWS REQUEST DETECTION (OPTIMIZED FOR 400 CHAR LIMIT) ===\nconst newsKeywords = /\\b(news|updates|latest|trending|recent developments|industry news|what's new|headlines|announcements)\\b/i;\nconst isNewsRequest = newsKeywords.test(userMessage);\n\nlet newsSearchQuery = '';\nif (isNewsRequest) {\n    console.log('📰 NEWS REQUEST DETECTED - Using Brave Search - News');\n        \n    try {\n        const industries = userContext.team_news_preferences?.industries || [];\n        const customTopics = userContext.team_news_preferences?.custom_topics || '';\n        const dateStr = now.toISOString().split('T')[0];\n\n        // Extract keywords using shared function (max 5 words for focused search)\n        const userKeywords = extractSearchKeywords(userMessage, 5);\n\n        if (industries.length > 0 || customTopics) {\n            const topics = [\n                industries.slice(0, 2).join(' '),\n                customTopics ? customTopics.slice(0, 40) : '',\n                userKeywords\n            ].filter(Boolean).join(' ').slice(0, 300);\n\n            newsSearchQuery = `${topics} latest news ${dateStr}`;\n        } else {\n            const teamContext = userContext.team_name ? userContext.team_name.slice(0, 20) : '';\n            newsSearchQuery = `${teamContext} ${userKeywords} latest news ${dateStr}`.trim();\n        }\n\n        // Validate length (400 char max, 50 word max)\n        const newsWords = newsSearchQuery.split(/\\s+/).filter(w => w.length > 0).length;\n        if (newsWords > 50) {\n            newsSearchQuery = newsSearchQuery.split(/\\s+/).filter(w => w.length > 0).slice(0, 50).join(' ');\n        }\n        if (newsSearchQuery.length > 400) {\n            newsSearchQuery = newsSearchQuery.slice(0, 397) + '...';\n        }\n\n        console.log(`📊 News query: ${newsSearchQuery.split(/\\s+/).filter(w => w.length > 0).length} words, ${newsSearchQuery.length} chars`);\n        console.log('🔍 News search query:', newsSearchQuery);\n    } catch (error) {\n        console.error('Error building news query:', error);\n        newsSearchQuery = 'business news latest';\n    }\n    \n    // Set news-specific search flags\n    hybridAnalysis.requiresNewsSearch = true;\n    hybridAnalysis.hybridType = 'news_update';\n    hybridAnalysis.externalDataNeeded = ['recent_news', 'latest_updates'];\n    \n    // Add to enhanced system message\n    enhancedSystemMessage += `\n**📰 NEWS SEARCH MODE ACTIVATED**\nUser requested news/updates. Use the \"Brave Search - News\" tool for recent articles.\nSearch query: \"${newsSearchQuery}\"\n**CRITICAL INSTRUCTIONS:**\n1. Execute \"Brave Search - News\" tool with the news query\n2. Review returned news articles (titles, URLs, publication dates)\n3. **VERIFY PUBLICATION DATES** - Prioritize articles from last 24-48 hours\n4. Identify the 3-5 most relevant and recent articles based on:\n    - Title relevance to user's query\n    - Publication recency (prefer today/yesterday)\n    - Source credibility and authority\n    - Content quality and depth\n5. Synthesize key findings from the news articles\n6. If results are insufficient or too old, supplement with \"Brave Search - Web\" for context\n**BRAVE SEARCH - NEWS ADVANTAGES:**\n- Automatically filtered for recent content (last 24-48 hours)\n- Returns articles with publication dates for verification\n- Optimized for news and current events\n- Broad coverage across industries and topics\n**FORMAT RESPONSE WITH:**\n- **Key Headlines** (3-5 most important recent stories)\n- **Publication Dates** - Always show: \"**Article Title** *(Published: November 8, 2025)*\"\n- **Recency Context** - Note \"published today\", \"from yesterday\", etc.\n- **Implications for ${userContext.team_name || 'your business'}**\n- **Actionable Insights**\n- Source links to original articles\n**CRITICAL DATE VALIDATION:**\nToday's date: ${currentDateFormatted}\nIf all results are older than 2-3 days, inform user that no recent news is available on this topic.`;\n}\n// === END NEWS REQUEST DETECTION ===\n\n\n// ============================================================\n// EMAIL QUERY DETECTION AND PREPROCESSING\n// Location: After the hybrid analysis section, before system message construction\n// ============================================================\n\n// === EMAIL QUERY DETECTION ===\nconsole.log('=== EMAIL QUERY DETECTION ===');\n\nconst isEmailQuery = /\\b(?:email|emails|mail|inbox|message|messages|sent|received|unread)\\b/i.test(userMessage);\n\nlet emailSearchStrategy = {\n    isEmailQuery: false,\n    requiresEmailSearch: false,\n    categories: [],\n    labels: [],\n    fromEmail: null,\n    toEmail: null,\n    subjectKeywords: [],\n    dateRange: null,\n    query: '',\n    searchPriority: 'semantic',\n    needsResponse: false,  // NEW: Track if user wants emails needing response\n    rawDetection: {}\n};\n\n// 🎯 Complete Updated Email Query Section\nif (isEmailQuery) {\n    console.log('Email query detected, analyzing parameters...');\n\n    // ✅ Detect \"need to respond\" pattern FIRST\n    const needsResponsePattern = /\\b(?:need|needs|require|requires|should|must)\\s+(?:to\\s+)?(?:respond|reply|answer|action)\\b/i;\n    const needsResponse = needsResponsePattern.test(userMessage);\n\n    // Category detection\n    const categoryPatterns = {\n        'automated': /\\b(?:automated|auto|system|notification|bot)\\b/i,\n        'client_communication': /\\b(?:client|customer|external|prospect)\\b/i,\n        'general': /\\b(?:general|misc|other)\\b/i,\n        'important': /\\b(?:important|urgent|priority|critical)\\b/i,\n        'internal_communication': /\\b(?:internal|team|colleague|coworker)\\b/i,\n        'newsletter': /\\b(?:newsletter|subscription|update|digest)\\b/i\n    };\n\n    const detectedCategories = [];\n    for (const [category, pattern] of Object.entries(categoryPatterns)) {\n        if (pattern.test(userMessage)) {\n            detectedCategories.push(category);\n        }\n    }\n\n    // Label detection\n    const labelPatterns = {\n        'UNREAD': /\\b(?:unread|new)\\b/i,\n        'INBOX': /\\b(?:inbox|received)\\b/i,\n        'SENT': /\\b(?:sent|outgoing)\\b/i,\n        'IMPORTANT': /\\b(?:important|starred|flagged)\\b/i,\n        'CATEGORY_UPDATES': /\\b(?:updates?|notifications?)\\b/i,\n        'CATEGORY_PROMOTIONS': /\\b(?:promotions?|offers?|deals?)\\b/i,\n        'CATEGORY_SOCIAL': /\\b(?:social)\\b/i\n    };\n\n    const detectedLabels = [];\n    for (const [label, pattern] of Object.entries(labelPatterns)) {\n        if (pattern.test(userMessage)) {\n            detectedLabels.push(label);\n        }\n    }\n    // ✅ DATE PARSING - Use the main parseFlexibleDateRange function!\n    let emailDateRange = parseFlexibleDateRange(userMessage);\n\n    if (emailDateRange) {\n        console.log('✅ Detected date in email query:', JSON.stringify(emailDateRange, null, 2));\n    }\n\n    // Handle \"today\" specifically (if not already captured)\n    if (!emailDateRange && /\\b(?:from|in)?\\s*today\\b/i.test(userMessage)) {\n        const todayStart = new Date(now); // ✅ FIXED: Clone 'now'\n        todayStart.setHours(0, 0, 0, 0);\n\n        const tomorrowStart = new Date(todayStart);\n        tomorrowStart.setDate(tomorrowStart.getDate() + 1);\n\n        emailDateRange = {\n            type: 'specific',\n            startDate: formatDate(todayStart),\n            endDate: formatDate(tomorrowStart),\n            description: 'today',\n            searchTerms: ['today'],\n            isRecent: false,\n            priority: 'high'\n        };\n        console.log('✅ Detected \"today\" in email query');\n    }\n\n    // Handle \"yesterday\"\n    if (!emailDateRange && /\\byesterday\\b/i.test(userMessage)) {\n        const yesterdayStart = new Date(now); // ✅ FIXED: Clone 'now'\n        yesterdayStart.setDate(yesterdayStart.getDate() - 1);\n        yesterdayStart.setHours(0, 0, 0, 0);\n\n        const todayStart = new Date(now);\n        todayStart.setHours(0, 0, 0, 0);\n\n        emailDateRange = {\n            type: 'specific',\n            startDate: formatDate(yesterdayStart),\n            endDate: formatDate(todayStart),\n            description: 'yesterday',\n            searchTerms: ['yesterday'],\n            isRecent: false,\n            priority: 'high'\n        };\n        console.log('✅ Detected \"yesterday\" in email query');\n    }\n\n    // Handle \"this week\"\n    if (!emailDateRange && /\\bthis\\s+week\\b/i.test(userMessage)) {\n        const today = new Date(now); // ✅ FIXED: Clone 'now'\n        const dayOfWeek = today.getDay();\n        const startOfWeek = new Date(today);\n        startOfWeek.setDate(today.getDate() - dayOfWeek);\n        startOfWeek.setHours(0, 0, 0, 0);\n\n        const endOfWeek = new Date(startOfWeek);\n        endOfWeek.setDate(startOfWeek.getDate() + 7);\n\n        emailDateRange = {\n            type: 'specific',\n            startDate: formatDate(startOfWeek),\n            endDate: formatDate(endOfWeek),\n            description: 'this week',\n            searchTerms: ['this week'],\n            isRecent: false,\n            priority: 'high'\n        };\n        console.log('✅ Detected \"this week\" in email query');\n    }\n\n    // Handle \"recent\" (7 days for emails)\n    if (!emailDateRange && /\\b(?:recent|latest)\\b/i.test(userMessage)) {\n        const endDate = now;\n        const startDate = addDays(new Date(now), -7); // Clone 'now' for calculation\n        emailDateRange = {\n            type: 'recent',\n            startDate: formatDate(startDate),\n            endDate: formatDate(addDays(endDate, 1)),\n            description: 'recent (last 7 days)',\n            searchTerms: ['recent', 'latest'],\n            isRecent: true,\n            priority: 'high'\n        };\n        console.log('✅ Detected \"recent\" in email query - using 7 days for emails');\n    }\n\n    // ✅ IMPROVED: From email detection - EXCLUDE temporal AND date words\n    const temporalAndDateWords = /\\b(?:today|yesterday|this\\s+week|last\\s+week|recent|latest|from|january|jan|february|feb|march|mar|april|apr|may|june|jun|july|jul|august|aug|september|sep|sept|october|oct|november|nov|december|dec|\\d{1,2}(?:st|nd|rd|th)?)\\b/gi;\n    const cleanedForEmailDetection = userMessage.replace(temporalAndDateWords, '').replace(/\\s+/g, ' ').trim();\n\n    console.log('Cleaned message for email detection:', cleanedForEmailDetection);\n\n    // From email patterns - only check the cleaned text\n    const fromPatterns = [\n        /\\bfrom[\\s:]+([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,})/i,\n        /\\bsender[\\s:]+([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}|[a-zA-Z]{3,})/i\n    ];\n\n    let fromEmail = null;\n    for (const pattern of fromPatterns) {\n        const match = cleanedForEmailDetection.match(pattern);\n        if (match && match[1] && match[1].length > 2) {\n            fromEmail = match[1].trim();\n            console.log('✅ Detected fromEmail:', fromEmail);\n            break;\n        }\n    }\n\n    // To email detection\n    let toEmail = null;\n    if (!needsResponse) {\n        const toPatterns = [\n            /\\bto[\\s:]+([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,})/i,\n            /\\brecipient[\\s:]+([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}|[a-zA-Z]{3,})/i\n        ];\n\n        for (const pattern of toPatterns) {\n            const match = cleanedForEmailDetection.match(pattern);\n            if (match && match[1] && match[1].length > 2) {\n                toEmail = match[1].trim();\n                console.log('✅ Detected toEmail:', toEmail);\n                break;\n            }\n        }\n    }\n\n    // Subject keyword detection\n    const subjectPatterns = [\n        /\\bsubject[\\s:]+[\"']?([^\"']+)[\"']?/i,\n        /\\babout[\\s:]+[\"']?([^\"']+)[\"']?/i,\n        /\\bregarding[\\s:]+[\"']?([^\"']+)[\"']?/i\n    ];\n\n    let subjectKeywords = [];\n    for (const pattern of subjectPatterns) {\n        const match = userMessage.match(pattern);\n        if (match && match[1]) {\n            subjectKeywords.push(match[1].trim());\n            console.log('✅ Detected subject keyword:', match[1]);\n        }\n    }\n\n    // Clean the semantic query by removing detected filters\n    let cleanedQuery = chatInput; // Use original case\n    if (emailDateRange && emailDateRange.searchTerms) {\n        for (const term of emailDateRange.searchTerms) {\n            cleanedQuery = cleanedQuery.replace(new RegExp(`\\\\b${term}\\\\b`, 'gi'), '');\n        }\n    }\n    if (fromEmail) {\n        cleanedQuery = cleanedQuery.replace(new RegExp(`\\\\bfrom[\\\\s:]+${fromEmail}\\\\b`, 'gi'), '');\n    }\n    if (toEmail) {\n        cleanedQuery = cleanedQuery.replace(new RegExp(`\\\\bto[\\\\s:]+${toEmail}\\\\b`, 'gi'), '');\n    }\n    cleanedQuery = cleanedQuery.replace(/\\s+/g, ' ').trim();\n\n    emailSearchStrategy = {\n        isEmailQuery: true,\n        requiresEmailSearch: true,\n        categories: detectedCategories,\n        labels: detectedLabels,\n        fromEmail: fromEmail,\n        toEmail: toEmail,\n        subjectKeywords: subjectKeywords,\n        dateRange: emailDateRange,\n        query: cleanedQuery,\n        searchPriority: (detectedCategories.length > 0 || detectedLabels.length > 0 || fromEmail || toEmail || emailDateRange || needsResponse) ? 'filtered' : 'semantic',\n        needsResponse: needsResponse,\n        rawDetection: {\n            hasCategories: detectedCategories.length > 0,\n            hasLabels: detectedLabels.length > 0,\n            hasFromFilter: !!fromEmail,\n            hasToFilter: !!toEmail,\n            hasSubjectFilter: subjectKeywords.length > 0,\n            hasDateFilter: !!emailDateRange,\n            needsResponse: needsResponse\n        }\n    };\n\n    console.log('✅ Final email search strategy:', JSON.stringify(emailSearchStrategy, null, 2));\n}\n// === END EMAIL QUERY DETECTION ===\n\n// === BUILD EMAIL METADATA FILTER JSON - FIXED FOR SQL FUNCTION ===\nlet emailMetadataFilterJson = {\n    filters: []\n};\n\nif (isEmailQuery) {\n    console.log('=== BUILDING EMAIL METADATA FILTER ===');\n    console.log('User ID:', userContext.user_id);\n    console.log('Date Range:', emailSearchStrategy.dateRange);\n\n    // ✅ User ID (mandatory) - FIXED KEY NAMES\n    emailMetadataFilterJson.filters.push({\n        col_name: 'user_id',        // ✅ Changed from 'column'\n        op: 'eq',             // ✅ Changed from 'operator'\n        val: userContext.user_id      // ✅ Changed from 'value'\n    });\n    // ✅ Date filters - FIXED KEY NAMES\n    if (emailSearchStrategy.dateRange) {\n        if (emailSearchStrategy.dateRange.startDate) {\n            console.log('Adding startDate filter:', emailSearchStrategy.dateRange.startDate);\n            emailMetadataFilterJson.filters.push({\n                col_name: 'date',      // ✅ Changed from 'column'\n                op: 'gte',             // ✅ Changed from 'operator'\n                val: emailSearchStrategy.dateRange.startDate  // ✅ Changed from 'value'\n            });\n        }\n        if (emailSearchStrategy.dateRange.endDate) {\n            console.log('Adding endDate filter:', emailSearchStrategy.dateRange.endDate);\n            emailMetadataFilterJson.filters.push({\n                col_name: 'date',      // ✅ Changed from 'column'\n                op: 'lt',              // ✅ Changed from 'operator'\n                val: emailSearchStrategy.dateRange.endDate    // ✅ Changed from 'value'\n            });\n        }\n    }\n\n    // ✅ CRITICAL: Validate all filters have required fields\n    emailMetadataFilterJson.filters = emailMetadataFilterJson.filters.filter(f => \n        f.col_name && f.op && f.val !== null && f.val !== undefined\n    );\n\n    console.log('✅ FIXED Email Metadata Filter:', JSON.stringify(emailMetadataFilterJson, null, 2));\n    console.log('Filter count:', emailMetadataFilterJson.filters.length);\n}\n\n\n// === ENHANCED MANDATORY SEARCH DETECTION ===\nconst MANDATORY_SEARCH_PHRASES = [\n    /\\b(?:see if|check if|find out|find if|determine if|verify if)\\b.*\\b(?:any|other|others|companies|competitors|someone|anyone)\\b/i,\n    /\\b(?:other|others)\\s+(?:companies|organizations|teams|projects|products|solutions|tools)\\b/i,\n    /\\b(?:similar|comparable|like|related)\\s+(?:projects|solutions|approaches|products|tools)\\b.*\\b(?:other|others|external|industry|market)\\b/i,\n    /\\b(?:how do|are|what are)\\s+(?:other|others|competitors|companies)\\b/i,\n    /\\b(?:industry|market|competitive|competitor)\\s+(?:analysis|research|trends|benchmarks|standards|practices)\\b/i,\n    /\\b(?:latest|current|recent)\\s+(?:industry|market|competitive|technology|trends)\\b/i\n];\nlet mandatorySearchDetected = false;\nfor (const pattern of Object.values(MANDATORY_SEARCH_PHRASES)) {\n    if (pattern.test(userMessage)) {\n        mandatorySearchDetected = true;\n        console.log('🚨 MANDATORY SEARCH PHRASE DETECTED:', pattern.toString());\n        break;\n    }\n}\n// Override hybrid analysis if mandatory phrase detected and not already news\nif (mandatorySearchDetected && !hybridAnalysis.requiresWebSearch && !hybridAnalysis.requiresNewsSearch) {\n    hybridAnalysis.requiresWebSearch = true;\n    hybridAnalysis.hybridType = 'competitive_analysis';\n    hybridAnalysis.externalDataNeeded = ['competitor_info', 'market_data', 'industry_analysis'];\n    console.log('🚨 OVERRIDING: Mandatory web search activated due to trigger phrase');\n}\n\n// NEW: Memory analysis\nconst memoryAnalysis = detectMemoryRequirements(userMessage);\n\n// NEW: Strategy requirements analysis\nconst strategyAnalysis = detectStrategyRequirements(chatInput);\nconst requiresStrategy = strategyAnalysis.requiresStrategy; // Define for use in recency weight calc\n\n// === BANK STATEMENT ANALYSIS DETECTION ===\nconst bankStatementPatterns = {\n    banking: /\\b(?:bank\\s*statement|banking|account\\s*balance|bank\\s*data)\\b/i,\n    cashFlow: /\\b(?:cash\\s*flow|cashflow|cash\\s*position)\\b/i,\n    transactions: /\\b(?:transactions?|transfers?|deposits?|withdrawals?)\\b/i,\n    expenses: /\\b(?:expenses?|spending|outflow|payments?|costs?)\\b/i,\n    income: /\\b(?:income|revenue|inflow|deposits?|earnings?)\\b/i,\n    financial: /\\b(?:financial\\s*analysis|money|budget|reconcil)\\b/i,\n    vendors: /\\b(?:vendors?|suppliers?|recurring\\s*payments?)\\b/i,\n    monthly: /\\b(?:monthly|period|statement|trend)\\b/i\n};\n\nlet requiresBankStatements = false;\nlet bankStatementScore = 0;\nconst detectedBankPatterns = [];\n\nfor (const [pattern, regex] of Object.entries(bankStatementPatterns)) {\n    if (regex.test(userMessage)) {\n        bankStatementScore++;\n        detectedBankPatterns.push(pattern);\n        console.log('Bank statement pattern detected:', pattern);\n    }\n}\n\n// Require bank statements if multiple patterns match or specific high-confidence patterns\nconst highConfidencePatterns = ['banking', 'cashFlow', 'transactions'];\nconst hasHighConfidence = detectedBankPatterns.some(p => highConfidencePatterns.includes(p));\n\nif (bankStatementScore >= 2 || hasHighConfidence) {\n    requiresBankStatements = true;\n    console.log('BANK STATEMENTS ANALYSIS ACTIVATED');\n}\n\n// === SOPHISTICATED FINANCIAL DOCUMENT FILTERING (FIXED VERSION) ===\nlet financialFilters = [];\nlet financialDocumentTypes = [];\nlet financialPeriods = [];\nlet quarterFilters = [];\nlet yearFilters = [];\n\nconsole.log('=== FINANCIAL FILTERING DEBUG ===');\nconsole.log('User message for financial analysis:', userMessage);\nconsole.log('Date range detected:', dateRange);\n\n// Enhanced financial document type patterns\nconst financialTypePatterns = {\n    'balance_sheet': /\\b(?:balance\\s*sheet|assets|liabilities|equity|current\\s*ratio|working\\s*capital|net\\s*worth)\\b/i,\n    'income_statement': /\\b(?:income\\s*statement|profit\\s*and\\s*loss|p\\s*&\\s*l|p&l|revenue|expenses|net\\s*income|gross\\s*margin|operating\\s*income)\\b/i,\n    'cash_flow': /\\b(?:cash\\s*flow|operating\\s*cash|investing\\s*activities|financing\\s*activities|free\\s*cash\\s*flow|cash\\s*position)\\b/i,\n    'budget': /\\b(?:budget|budgeting|planned\\s*expenses|forecasted|projected\\s*revenue|budget\\s*variance)\\b/i,\n    'forecast': /\\b(?:forecast|projection|predict|future\\s*performance|forward\\s*looking|pro\\s*forma)\\b/i,\n    'transactions': /\\b(?:transactions|bank\\s*statements|payments|receipts|deposits|withdrawals|transfers)\\b/i,\n    'financial_statement': /\\b(?:financial\\s*statement|audited\\s*financials|gaap|financial\\s*report)\\b/i,\n    'other': /\\b(?:tax\\s*return|accounts\\s*receivable|accounts\\s*payable|a\\/r|a\\/p|shareholder\\s*equity|retained\\s*earnings)\\b/i\n};\n\n// Detect \"expenses\" pattern specifically\nconst expensePattern = /\\b(?:expenses?|spending|costs?|expenditure|payments?|outflow)\\b/i;\nif (expensePattern.test(userMessage)) {\n    financialDocumentTypes.push('income_statement', 'transactions');\n    console.log('EXPENSES detected - adding income_statement and transactions');\n}\n\n// Detect other specific financial document types\nfor (const [docType, pattern] of Object.entries(financialTypePatterns)) {\n    if (pattern.test(userMessage)) {\n        financialDocumentTypes.push(docType);\n        console.log('Financial doc type detected:', docType);\n    }\n}\n\n// Remove duplicates\nfinancialDocumentTypes = [...new Set(financialDocumentTypes)];\n\n// === ENHANCED DATE RANGE TO FINANCIAL FILTERS ===\nif (dateRange) {\n    console.log('Processing date range for financial filters:', dateRange);\n\n    if (dateRange.type === 'single_month') {\n        // For \"August 2025\" - add month and year filters\n        const monthNum = dateRange.startDate ? parseInt(dateRange.startDate.split('-')[1]) : null;\n        const yearNum = dateRange.year || parseInt(dateRange.startDate.split('-')[0]);\n\n        if (monthNum) {\n            financialFilters.push({\n                column: 'month',\n                operator: 'eq',\n                value: monthNum\n            });\n            console.log('Added month filter:', monthNum);\n        }\n\n        if (yearNum) {\n            financialFilters.push({\n                column: 'year',\n                operator: 'eq',\n                value: yearNum.toString()\n            });\n            console.log('Added year filter:', yearNum);\n        }\n\n        // Also add period date filters as backup\n        if (dateRange.startDate) {\n            financialFilters.push({\n                column: 'period_start_date',\n                operator: 'gte',\n                value: dateRange.startDate\n            });\n        }\n\n        if (dateRange.endDate) {\n            financialFilters.push({\n                column: 'period_end_date',\n                operator: 'lte',\n                value: dateRange.endDate\n            });\n        }\n    } else if (dateRange.type === 'full_year') {\n        financialFilters.push({\n            column: 'year',\n            operator: 'eq',\n            value: dateRange.year.toString()\n        });\n    } else {\n        // General date range\n        if (dateRange.startDate) {\n            financialFilters.push({\n                column: 'period_start_date',\n                operator: 'gte',\n                value: dateRange.startDate\n            });\n        }\n\n        if (dateRange.endDate) {\n            financialFilters.push({\n                column: 'period_end_date',\n                operator: 'lte',\n                value: dateRange.endDate\n            });\n        }\n    }\n}\n\n// === QUARTERLY ANALYSIS PATTERNS ===\nconst quarterPatterns = {\n    'Q1': /\\b(?:q1|first\\s*quarter|quarter\\s*1)\\b/i,\n    'Q2': /\\b(?:q2|second\\s*quarter|quarter\\s*2)\\b/i,\n    'Q3': /\\b(?:q3|third\\s*quarter|quarter\\s*3)\\b/i,\n    'Q4': /\\b(?:q4|fourth\\s*quarter|quarter\\s*4)\\b/i\n};\n\nconst detectedQuarters = [];\nfor (const [quarter, pattern] of Object.entries(quarterPatterns)) {\n    if (pattern.test(userMessage)) {\n        detectedQuarters.push(quarter);\n    }\n}\n\n// Add quarter filters\nif (detectedQuarters.length > 0) {\n    const quarterNumbers = detectedQuarters.map(q => parseInt(q.substring(1)));\n    financialFilters.push({\n        column: 'quarter',\n        operator: quarterNumbers.length === 1 ? 'eq' : 'in',\n        value: quarterNumbers.length === 1 ? quarterNumbers[0] : quarterNumbers\n    });\n}\n\n// === ADD DATA CATEGORY FILTERS === // ✅ CHANGE 1: Filter Section Comment\nif (financialDocumentTypes.length > 0) {\n    financialFilters.push({\n        column: 'data_category', // ✅ CHANGE 2: Primary Filter Push (from 'document_type' to 'data_category')\n        operator: financialDocumentTypes.length === 1 ? 'eq' : 'in',\n        value: financialDocumentTypes.length === 1 ? financialDocumentTypes[0] : financialDocumentTypes\n    });\n}\n\n// === DATA CATEGORY FILTERS ===\nconst dataCategoryPatterns = {\n    'revenue': /\\b(?:revenue|sales|income|earnings)\\b/i,\n    'expenses': /\\b(?:expenses|costs|expenditure|spending)\\b/i,\n    'assets': /\\b(?:assets|property|equipment|inventory|receivables)\\b/i,\n    'liabilities': /\\b(?:liabilities|debt|payables|obligations)\\b/i,\n    'equity': /\\b(?:equity|capital|retained\\s*earnings|shareholders?\\s*equity)\\b/i,\n    'ratios': /\\b(?:ratio|margin|percentage|rate|multiple)\\b/i\n};\n\nconst detectedCategories = [];\nfor (const [category, pattern] of Object.entries(dataCategoryPatterns)) {\n    if (pattern.test(userMessage)) {\n        detectedCategories.push(category);\n    }\n}\n\nif (detectedCategories.length > 0) {\n    financialFilters.push({\n        column: 'data_category',\n        operator: detectedCategories.length === 1 ? 'eq' : 'in',\n        value: detectedCategories.length === 1 ? detectedCategories[0] : detectedCategories\n    });\n}\n\n// === ENHANCED EXPENSE DETECTION FOR TRANSACTIONS ===\nconst isExpenseQuery = /\\b(?:expenses?|spending|costs?|expenditure|payments?|outflow)\\b/i.test(userMessage);\n\n// If user asks for expenses, include both 'expenses' and 'transactions' categories\nif (isExpenseQuery) {\n    // Remove any existing data_category filters\n    financialFilters = financialFilters.filter(f => f.column !== 'data_category');\n\n    // Add inclusive filter for both expenses and transactions\n    financialFilters.push({\n        column: 'data_category',\n        operator: 'in',\n        value: ['expenses', 'transactions']\n    });\n\n    console.log('EXPENSE QUERY DETECTED - including both expenses and transactions categories');\n}\n\n// Also include transaction document types for expense queries\nif (isExpenseQuery) {\n    // Check if we already have document type filters\n    const existingDocTypeFilter = financialFilters.find(f => f.column === 'data_category'); // ✅ CHANGE 3: Expense Query Filter Update (from 'document_type' to 'data_category')\n\n    if (existingDocTypeFilter) {\n        // Add 'transactions' to existing document types if not already present\n        if (Array.isArray(existingDocTypeFilter.value)) {\n            if (!existingDocTypeFilter.value.includes('transactions')) {\n                existingDocTypeFilter.value.push('transactions');\n            }\n        } else if (existingDocTypeFilter.value !== 'transactions') {\n            existingDocTypeFilter.value = [existingDocTypeFilter.value, 'transactions'];\n            existingDocTypeFilter.operator = 'in';\n        }\n    } else {\n        // Add transactions document type\n        financialFilters.push({\n            column: 'data_category', // ✅ CHANGE 3: Expense Query Filter Update (from 'document_type' to 'data_category')\n            operator: 'eq',\n            value: 'transactions'\n        });\n    }\n\n    console.log('ADDED TRANSACTIONS DOCUMENT TYPE for expense query (data_category filter)');\n}\n\n// === MANDATORY TEAM FILTERING FOR FINANCIAL DATA ===\nif (userContext.team_id) {\n    financialFilters.push({\n        column: 'team_id',\n        operator: 'eq',\n        value: userContext.team_id\n    });\n    console.log('🔒 FINANCIAL TEAM FILTER APPLIED:', userContext.team_id);\n}\n\n// === ENSURE WE HAVE VALID FILTERS ===\nlet financialFilterJson = '[]';\nif (financialFilters.length > 0) {\n    financialFilterJson = JSON.stringify(financialFilters);\n} else {\n    // If no specific filters, at least search for financial content\n    const isFinancialQuery = /\\b(?:financial|finance|money|profit|loss|revenue|expense|budget|forecast|cash|balance|statement|costs?|spending)\\b/i.test(userMessage);\n    if (isFinancialQuery) {\n        financialFilterJson = JSON.stringify([]);\n    }\n}\n\nconsole.log('=== FINAL FINANCIAL FILTERS ===');\nconsole.log('Financial filters array:', financialFilters);\nconsole.log('Financial filters JSON:', financialFilterJson);\nconsole.log('Document types detected (via new filter):', financialDocumentTypes);\nconsole.log('Data categories detected:', detectedCategories);\n\n// === FINANCIAL ANALYSIS (Initialize financialScope EARLY) ===\nconst financialTypes = {\n    cashFlow: /cash\\s*flow|cashflow/i.test(userMessage),\n    financialSummary: /financial\\s*(summary|overview|analysis)|financials/i.test(userMessage),\n    ratios: /ratio|liquidity|profitability|leverage/i.test(userMessage),\n    forecasting: /forecast|projection|predict|future/i.test(userMessage),\n    performance: /performance|kpi|metrics|dashboard/i.test(userMessage),\n    comprehensive: /comprehensive|complete|detailed|full/i.test(userMessage)\n};\n\nlet financialScope = 'none';\nconst financialKeywords = Object.values(financialTypes).filter(Boolean).length;\n\nif (financialTypes.comprehensive || financialKeywords >= 3) {\n    financialScope = 'comprehensive';\n} else if (financialTypes.cashFlow || financialTypes.forecasting) {\n    financialScope = 'advanced';\n} else if (financialTypes.financialSummary || financialTypes.ratios) {\n    financialScope = 'intermediate';\n} else if (financialKeywords > 0) {\n    financialScope = 'basic';\n}\n\n// === FINANCIAL ANALYSIS SCOPE ENHANCEMENT ===\nlet requiresFinancialVectorSearch = false;\nlet financialAnalysisComplexity = 'none';\n\n// Determine if financial vector search is needed\nif (financialDocumentTypes.length > 0 ||\n    detectedQuarters.length > 0 ||\n    detectedCategories.length > 0 ||\n    financialScope !== 'none' ||\n    /\\b(?:financial|finance|money|profit|loss|revenue|expense|budget|forecast|cash|balance|statement|expenses?|costs?|spending)\\b/i.test(userMessage)) {\n\n    requiresFinancialVectorSearch = true;\n\n    // Determine complexity level\n    const complexityIndicators = [\n        financialDocumentTypes.length > 1,\n        detectedQuarters.length > 0,\n        detectedCategories.length > 0,\n        /\\b(?:compare|comparison|trend|analysis|ratio|variance|forecast)\\b/i.test(userMessage),\n        financialFilters.length > 2\n    ];\n\n    const complexityScore = complexityIndicators.filter(Boolean).length;\n\n    if (complexityScore >= 3) {\n        financialAnalysisComplexity = 'comprehensive';\n    } else if (complexityScore >= 2) {\n        financialAnalysisComplexity = 'advanced';\n    } else if (complexityScore >= 1) {\n        financialAnalysisComplexity = 'intermediate';\n    } else {\n        financialAnalysisComplexity = 'basic';\n    }\n}\n\nconsole.log('Financial Vector Search Required:', requiresFinancialVectorSearch);\nconsole.log('Financial Analysis Complexity:', financialAnalysisComplexity);\n\n\n// ***************************************************************\n// === FINANCIAL ACCESS CONTROL WITH USER-FRIENDLY MESSAGING === //\n// ***************************************************************\nconst canAccessFinancial = userContext.role === 'admin' || userContext.view_financial;\n\nif (requiresFinancialVectorSearch && !canAccessFinancial) {\n    console.log('⛔ USER LACKS FINANCIAL ACCESS - Blocking financial queries');\n    requiresFinancialVectorSearch = false;\n    financialAnalysisComplexity = 'denied';\n    \n    // Add user-friendly denial message to system prompt\n    enhancedSystemMessage += `\n**⛔ FINANCIAL DATA ACCESS DENIED**\n\nThe user requested financial information but lacks the required permissions.\n\n**User Permissions:**\n- Role: ${userContext.role}\n- Financial View Access: ${userContext.view_financial ? 'Enabled' : 'Disabled'}\n\n**REQUIRED RESPONSE:**\nYou MUST politely inform the user with this EXACT message:\n\n\"I apologize, but I don't have access to financial information for your account. Financial data is either not available for your team, or is only available to users with financial view permissions enabled.\n\nIf you need access to financial data, please connect your Financial data or contact your Team Admin to request permission.\n\nI can still help you with:\n- Meeting transcripts and discussions\n- Strategic planning documents\n- AI news and industry insights\n- General business intelligence\n\nIs there something else I can help with?\"\n\n**CRITICAL:** Do NOT attempt to search financial documents. Do NOT make up financial data. ONLY provide the above message for financial queries.\n`;\n\n    // Store denial reason for debugging\n    userContext.financialAccessDenied = true;\n    userContext.financialDenialReason = userContext.role === 'member' && !userContext.view_financial \n        ? 'Member without financial view permission' \n        : 'Unknown permission issue';\n}\n\n// Store the permission check result\nuserContext.canAccessFinancial = canAccessFinancial;\n// ***************************************************************\n\n// CRITICAL: Determine if strict filtering is needed\nconst requiresStrictFiltering = meetingTypesWithConfidence.some(m => m.strictFiltering);\nconst isSpecificMeetingType = meetingTypesWithConfidence.some(m => m.isSpecific);\n\nconsole.log('=== FILTERING ANALYSIS ===');\nconsole.log('Date range detected:', dateRange);\nconsole.log('Meeting types detected:', meetingTypesWithConfidence);\nconsole.log('Requires strict filtering:', requiresStrictFiltering);\nconsole.log('Is specific meeting type:', isSpecificMeetingType);\nconsole.log('Hybrid analysis:', hybridAnalysis);\n\n// === FULL TRANSCRIPT ANALYSIS DETECTION ===\nconst fullTranscriptPatterns = {\n    wordCount: /\\b(?:word count|how many words|speaking time|talk time|words? spoken)\\b/i,\n    speakerAnalysis: /\\b(?:each (?:speaker|person|member)|who (?:spoke|talked)|speaking patterns?)\\b/i,\n    completeTranscript: /\\b(?:full transcript|complete (?:meeting|transcript)|entire (?:meeting|discussion))\\b/i,\n    sequentialAnalysis: /\\b(?:conversation flow|discussion sequence|chronological|order of discussion)\\b/i,\n    documentStats: /\\b(?:document statistics|transcript length|meeting duration|total words?)\\b/i\n};\n\nlet requiresFullTranscript = false;\nfor (const [pattern, regex] of Object.entries(fullTranscriptPatterns)) {\n    if (regex.test(userMessage)) {\n        requiresFullTranscript = true;\n        console.log('Full transcript required:', pattern);\n        break;\n    }\n}\n\n// === ENHANCED SEARCH STRATEGY WITH HYBRID INTELLIGENCE ===\nlet searchStrategy = 'semantic';\nlet supabaseFilters = [];\nlet temporalPriority = 'none';\nlet strictModeEnabled = false;\n\n// **OPTION 1: Document Creation Request Detection**\nconst isDocumentCreationRequest = /\\b(?:write|create|compile|draft|prepare|put together|help me write)\\b.*\\b(?:update|report|summary|memo|email)\\b/i.test(userMessage);\n\n// Then modify strict mode activation:\nif (requiresStrictFiltering && hasMeetingTypes && !isDocumentCreationRequest) {\n    strictModeEnabled = true;\n    console.log('STRICT MODE ENABLED for meeting type:', meetingTypes[0]);\n}\n\n// Determine search strategy\nif (hasDateRange) {\n    if (dateRange.type === 'specific_date') {\n        searchStrategy = 'exact_date';\n        temporalPriority = 'exact';\n    } else if (dateRange.isRecent) {\n        searchStrategy = 'recent_priority';\n        temporalPriority = 'recent';\n    } else {\n        searchStrategy = 'date_range';\n        temporalPriority = 'range';\n    }\n}\n\n// NEW: Update search strategy for hybrid queries\nif (hybridAnalysis.requiresWebSearch || hybridAnalysis.requiresNewsSearch) {\n    if (hybridAnalysis.requiresNewsSearch) {\n        // Override to force news_search strategy if it's a news query\n        searchStrategy = 'news_search';\n        console.log('NEWS SEARCH MODE ACTIVATED');\n    } else if (searchStrategy === 'semantic' && hybridAnalysis.hybridType !== 'news_update') {\n        searchStrategy = 'hybrid_' + hybridAnalysis.hybridType;\n    } else if (searchStrategy !== 'semantic' && hybridAnalysis.hybridType !== 'news_update') {\n        searchStrategy = searchStrategy + '_hybrid';\n    }\n        \n    console.log('HYBRID MODE ACTIVATED:', hybridAnalysis.hybridType);\n}\n\n// Build metadata filters with enhanced strictness\n\n// === MANDATORY TEAM FILTERING ===\nsupabaseFilters.push({\n    column: 'team_id',\n    operator: 'eq',\n    value: userContext.team_id\n});\nconsole.log('🔒 TEAM FILTER APPLIED:', userContext.team_id);\n\nif (hasDateRange) {\n    if (dateRange.type === 'full_year') {\n        supabaseFilters.push({\n            column: 'document_date',\n            operator: 'year',\n            value: dateRange.year.toString()\n        });\n    } else {\n        supabaseFilters.push({\n            column: 'document_date',\n            operator: 'gte',\n            value: dateRange.startDate\n        });\n        supabaseFilters.push({\n            column: 'document_date',\n            operator: 'lt',\n            value: dateRange.endDate\n        });\n    }\n}\n\n// ENHANCED: Strict meeting type filtering\nif (hasMeetingTypes) {\n    if (meetingTypes.length === 1) {\n        supabaseFilters.push({\n            column: 'document_category',\n            operator: 'eq',\n            value: meetingTypes[0]\n        });\n    } else {\n        supabaseFilters.push({\n            column: 'document_category',\n            operator: 'in',\n            value: meetingTypes\n        });\n    }\n}\n\n// === CALCULATE RECENCY WEIGHTING PARAMETERS (New Logic) ===\n\nfunction calculateRecencyWeight(searchStrategy, hybridAnalysis) {\n    if (searchStrategy === 'news_search' || hybridAnalysis?.hybridType === 'news_update') {\n        return 0.40; // News queries need very fresh data\n    } else if (searchStrategy.includes('recent_priority')) {\n        return 0.25; // Recent queries prefer newer data\n    } else if (searchStrategy === 'exact_date') {\n        return 0.0; // Exact date queries ignore recency\n    } else {\n        // Note: The logic for financial/strategy boost is now in the main block's recencyWeight assignment\n        return 0.15; // Balanced default\n    }\n}\n\nfunction calculateMaxDaysOld(searchStrategy) {\n    if (searchStrategy === 'news_search') {\n        return 60; // News older than 60 days is rarely relevant\n    } else if (searchStrategy.includes('recent_priority')) {\n        return 180; // Recent queries look back 6 months\n    } else {\n        return 365; // Default 1 year lookback\n    }\n}\n\n// Recalculate Recency Weight based on the newly defined functions and logic\nlet recencyWeight = calculateRecencyWeight(searchStrategy, hybridAnalysis);\nlet maxDaysOld = calculateMaxDaysOld(searchStrategy);\n\n// Apply custom overrides based on other flags (as per old logic structure)\nif (searchStrategy === 'semantic' || searchStrategy.includes('hybrid')) {\n    // Check for financial/strategy based on flags if searchStrategy is not specific\n    if (requiresFinancialVectorSearch) {\n        recencyWeight = 0.20;\n        maxDaysOld = 730;  // 2 years\n    }\n    if (requiresStrategy) {\n        recencyWeight = 0.25;\n        maxDaysOld = 180;  // 6 months\n    }\n}\n// END RECENCY WEIGHT CALCULATION\n\n\n// === MEETING SIZE AWARE TOPK CALCULATION WITH DYNAMIC ESTIMATION ===\nconst CHUNKS_PER_MEETING_FALLBACK = 500;\nconst SAFETY_BUFFER = 1.2;\n\n// Determine meeting configuration for the detected type (if strict mode is enabled)\nlet meetingConfig = null;\nif (strictModeEnabled && meetingTypes.length === 1) {\n    meetingConfig = userContext.team_meeting_types.find(mt => mt.type === meetingTypes[0]);\n}\n\nconst chunksPerMeeting = meetingConfig \n    ? estimateChunksPerMeeting(meetingConfig.description) \n    : CHUNKS_PER_MEETING_FALLBACK;\n\nconst meetingFrequency = meetingConfig\n    ? parseMeetingFrequency(meetingConfig.description)\n    : 'weekly'; // Fallback frequency\n\nlet estimatedMeetings = 1;\n\nswitch (searchStrategy) {\n    case 'exact_date':\n    case 'exact_date_hybrid':\n        // Single specific date = likely 1 meeting\n        estimatedMeetings = 1;\n        optimalTopK = Math.round(chunksPerMeeting * 1.5); // 1.5x buffer\n        console.log('EXACT DATE: Single meeting expected');\n        break;\n    case 'recent_priority':\n    case 'recent_priority_hybrid':\n        if (isAbsoluteLatestQuery) {\n            // \"Most recent\" = ONLY the newest meeting\n            estimatedMeetings = 1;\n            optimalTopK = Math.round(chunksPerMeeting * 1.3);\n            console.log('MOST RECENT: Single newest meeting');\n        } else if (strictModeEnabled && meetingConfig) {\n            // Calculate based on detected frequency\n            const dateRangeDays = dateRange.description.includes('30 days') ? 30 :\n                                  dateRange.description.includes('60 days') ? 60 : 30;\n                        \n            estimatedMeetings = calculateExpectedMeetings(meetingFrequency, dateRangeDays);\n            optimalTopK = Math.round(chunksPerMeeting * estimatedMeetings * 1.2);\n                        \n            console.log(`RECENT + STRICT: ${estimatedMeetings} meetings (${meetingFrequency} cadence) over ${dateRangeDays} days`);\n        } else {\n            // Mixed types - conservative estimate\n            const dateRangeDays = dateRange.description.includes('30 days') ? 30 : 60;\n            estimatedMeetings = Math.ceil(dateRangeDays / 5); // Assume ~2 meetings per week mixed\n            optimalTopK = Math.round(chunksPerMeeting * estimatedMeetings * 1.3);\n                        \n            console.log(`RECENT + MIXED: ${estimatedMeetings} meetings (mixed types)`);\n        }\n        break;\n    case 'date_range':\n    case 'date_range_hybrid':\n        if (strictModeEnabled && meetingConfig) {\n            // Calculate date range duration\n            let dateRangeDays;\n                        \n            if (dateRange.type === 'full_year') {\n                dateRangeDays = 365;\n            } else if (dateRange.type === 'single_month') {\n                dateRangeDays = 30;\n            } else if (dateRange.description.includes('quarter')) {\n                dateRangeDays = 90;\n            } else if (dateRange.startDate && dateRange.endDate) {\n                const startDate = new Date(dateRange.startDate);\n                const endDate = new Date(dateRange.endDate);\n                dateRangeDays = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24));\n            } else {\n                dateRangeDays = 90; // Default to quarter\n            }\n                        \n            estimatedMeetings = calculateExpectedMeetings(meetingFrequency, dateRangeDays);\n            optimalTopK = Math.round(chunksPerMeeting * estimatedMeetings * 1.2);\n                        \n            console.log(`RANGE + STRICT: ${estimatedMeetings} meetings (${meetingFrequency}) over ${dateRangeDays} days`);\n        } else {\n            // Mixed types with date range\n            let dateRangeDays;\n                        \n            if (dateRange.type === 'full_year') {\n                dateRangeDays = 365;\n                estimatedMeetings = Math.ceil(dateRangeDays / 3); // ~2 meetings/week mixed\n            } else if (dateRange.type === 'single_month') {\n                dateRangeDays = 30;\n                estimatedMeetings = Math.ceil(dateRangeDays / 3); // ~2 meetings/week mixed\n            } else if (dateRange.description.includes('quarter')) {\n                dateRangeDays = 90;\n                estimatedMeetings = Math.ceil(dateRangeDays / 3); // ~2 meetings/week mixed\n            } else {\n                dateRangeDays = 90; // Default\n                estimatedMeetings = 30;\n            }\n                        \n            optimalTopK = Math.round(chunksPerMeeting * estimatedMeetings * 1.3);\n            console.log(`RANGE + MIXED: ${estimatedMeetings} meetings over ${dateRangeDays} days`);\n        }\n        break;\n    case 'news_search':\n        // News search doesn't need meeting chunks\n        optimalTopK = 50;\n        estimatedMeetings = 0;\n        console.log('NEWS SEARCH: Minimal TopK');\n        break;\n    default:\n        // Semantic search without specific filters (last 90 days assumed)\n        if (strictModeEnabled && meetingConfig) {\n            estimatedMeetings = calculateExpectedMeetings(meetingFrequency, 90);\n            optimalTopK = Math.round(chunksPerMeeting * estimatedMeetings * 1.3);\n            console.log(`SEMANTIC + STRICT: ${estimatedMeetings} recent meetings (${meetingFrequency})`);\n        } else {\n            estimatedMeetings = 40; // Mixed types, conservative\n            optimalTopK = Math.round(chunksPerMeeting * estimatedMeetings * 1.3);\n            console.log(`SEMANTIC + MIXED: ${estimatedMeetings} recent meetings`);\n        }\n}\n\n// **OPTION 3: Optimize SQL Query - Reduce TopK for Strict Category Searches**\nif (strictModeEnabled) {\n    // TopK reduction: Much lower for single category to optimize performance\n    optimalTopK = Math.min(optimalTopK, 300); \n    console.log('🎯 REDUCED TopK for strict mode to optimize performance:', optimalTopK);\n}\n// End Option 3\n\n// Apply comprehensive query boost\nif (/\\b(all|every|analyze|analysis|trends|insights|summary|overview|summarize|comprehensive|complete|detailed)\\b/i.test(userMessage)) {\n    optimalTopK = Math.round(optimalTopK * 1.8);\n    console.log('COMPREHENSIVE QUERY BOOST: +80%');\n}\n\n// Apply hard limits\noptimalTopK = Math.round(optimalTopK);\noptimalTopK = Math.max(optimalTopK, 100); // Minimum 100 chunks\noptimalTopK = Math.min(optimalTopK, 15000); // Maximum 15k chunks\n\nconsole.log('=== FINAL TOPK CALCULATION ===');\nconsole.log('Meeting Type:', meetingTypes[0] || 'Mixed');\nconsole.log('Frequency:', meetingFrequency);\nconsole.log('Estimated Meetings:', estimatedMeetings);\nconsole.log('Chunks Per Meeting:', chunksPerMeeting);\nconsole.log('Optimal TopK:', optimalTopK);\nconsole.log('Expected Coverage:', `${estimatedMeetings} meetings × ${chunksPerMeeting} chunks = ${estimatedMeetings * chunksPerMeeting} base (TopK includes ${Math.round((optimalTopK / (estimatedMeetings * chunksPerMeeting) - 1) * 100)}% buffer)`);\n\n// === BUILD SEMANTIC QUERY WITH KEYWORD EXTRACTION ===\nlet semanticQuery = '';\ntry {\n  if (hasMeetingTypes && meetingTypes.length > 0) {\n    // For meeting-type queries, keep it focused\n    const topicKeywords = extractSearchKeywords(userMessage, 5);\n    semanticQuery = `${meetingTypes.join(' ')} meeting ${topicKeywords}`;\n  } else if (dateRange) {\n    // For date-based queries, focus on topics not dates\n    const topicKeywords = extractSearchKeywords(userMessage, 6);\n    semanticQuery = topicKeywords || 'general topics';\n  } else {\n    // General semantic query - extract key concepts\n    semanticQuery = extractSearchKeywords(userMessage, 8);\n  }\n  // Fallback if no keywords extracted\n  if (!semanticQuery || semanticQuery.trim().length === 0) {\n    semanticQuery = 'business information';\n  }\n\n  // === CRITICAL: VALIDATE QUERY LENGTH FOR BRAVE SEARCH ===\n  const wordCount = semanticQuery.split(/\\s+/).filter(w => w.length > 0).length;\n  const charCount = semanticQuery.length;\n  console.log(`📊 Semantic query stats: ${wordCount} words, ${charCount} chars`);\n\n  // Brave Web Search: MAX 50 words, MAX 400 chars\n  if (wordCount > 50 || charCount > 400) {\n    console.log('⚠️ Query exceeds Brave limits, truncating...');\n\n    // Truncate to 50 words max\n    const words = semanticQuery.split(/\\s+/).filter(w => w.length > 0).slice(0, 50);\n    semanticQuery = words.join(' ');\n\n    // Also ensure under 400 chars\n    if (semanticQuery.length > 400) {\n      semanticQuery = semanticQuery.slice(0, 397) + '...';\n    }\n\n    console.log(`✅ Truncated to: ${semanticQuery.split(/\\s+/).filter(w => w.length > 0).length} words, ${semanticQuery.length} chars`);\n  }\n  console.log('🔍 Final semantic query:', semanticQuery);\n} catch (error) {\n  console.error('Error building semantic query:', error);\n  semanticQuery = 'business information';  // Safe fallback\n}\n\n// Update the temporary semantic query in emailSearchStrategy now that it's cleaned\nif (isEmailQuery) {\n    emailSearchStrategy.query = semanticQuery;\n}\n\n// === ENHANCED SYSTEM MESSAGES WITH HYBRID INTELLIGENCE (Redone to handle News/Financial Pre-pend) ===\n\n// If news was detected, the message was already appended. If financial was denied, it was set entirely.\n// Otherwise, start the main system message here.\n\nif (!userContext.financialAccessDenied && !hybridAnalysis.requiresNewsSearch) { \n    // Check if hybrid/mandatory was detected AFTER news check\n    if (hybridAnalysis.requiresWebSearch || mandatorySearchDetected) {\n        enhancedSystemMessage = `🚨 **MANDATORY WEB SEARCH REQUIRED** 🚨\nThis query requires external competitive/market intelligence.\n**YOU MUST EXECUTE BRAVE SEARCH TOOL BEFORE RESPONDING**\n- Query type: ${hybridAnalysis.hybridType}\n- External data needed: ${hybridAnalysis.externalDataNeeded.join(', ')}\n- Mandatory search detected: ${mandatorySearchDetected}\n- Search priority: CRITICAL\n**FAILURE TO SEARCH = INCOMPLETE RESPONSE**\nDo NOT rely solely on internal documents. Execute Brave Search NOW.\n---\n`;\n    }\n\n\n    if (requiresFullTranscript && financialAnalysisComplexity !== 'denied') { // Check if not denied\n        enhancedSystemMessage += `\n**FULL TRANSCRIPT ANALYSIS REQUIRED**\nUser requested complete document analysis requiring sequential transcript content.\n\n**MANDATORY TOOL USAGE:**\nYou MUST use \"Full Meeting Transcript Retrieval\" tool to access complete, unbroken meeting documents.\nDO NOT use the semantic search tool for this type of analysis - it will return fragmented chunks.\n\n**ANALYSIS TYPE DETECTED:**\n- Query requires sequential document content\n- Perfect for word counts, speaker analysis, conversation flow\n- Use complete transcript data for accurate metrics\n`;\n    } else if (financialAnalysisComplexity !== 'denied') { // Only add if not denied\n        // Enhanced system messages with hybrid intelligence and strict filtering awareness\n        const hybridPrefix = hybridAnalysis.requiresWebSearch ? ' (HYBRID INTELLIGENCE ACTIVE)' : ' (INTERNAL SEARCH)';\n        const strictPrefix = strictModeEnabled ? ' (STRICT MODE)' : '';\n\n        switch (searchStrategy) {\n            case 'exact_date':\n            case 'exact_date_hybrid':\n                enhancedSystemMessage += `\n**EXACT DATE SEARCH ACTIVE**${strictPrefix}${hybridPrefix}\nUser requested specific date: ${dateRange.description}\n\n**SEARCH CONFIGURATION:**\n- Strategy: Exact date matching${strictModeEnabled ? ' with strict meeting type filtering' : ''}${hybridAnalysis.requiresWebSearch ? ' + web search for external context' : ''}\n- Date filters: ${dateRange.startDate} to ${dateRange.endDate}\n- Meeting types: [${meetingTypes.join(', ') || 'All types'}]${strictModeEnabled ? ' (STRICTLY ENFORCED)' : ''}\n- Results limit: ${optimalTopK} (covers ~${estimatedMeetings} meetings)\n- Temporal priority: EXACT match required\n\n${hybridAnalysis.requiresWebSearch ? `**HYBRID INTELLIGENCE:** This query requires both internal meeting data and external market knowledge. Use web search for: ${hybridAnalysis.externalDataNeeded.join(', ')}` : ''}\n\n**CRITICAL**: Only include information from meetings that occurred on ${dateRange.description}${strictModeEnabled ? ` AND are of type \"${meetingTypes[0]}\"` : ''}.\n${strictModeEnabled ? `REJECT any information from meetings that are not \"${meetingTypes[0]}\" type.` : ''}\n`;\n                break;\n\n            case 'recent_priority':\n            case 'recent_priority_hybrid':\n                enhancedSystemMessage += `\n**RECENT-PRIORITY SEARCH ACTIVE**${strictPrefix}${hybridPrefix}\nUser requested: ${dateRange.description}\n\n**SEARCH CONFIGURATION:**\n- Strategy: Recent data prioritization${strictModeEnabled ? ' with strict meeting type filtering' : ''}${hybridAnalysis.requiresWebSearch ? ' + web search for external context' : ''}\n- Date filters: ${dateRange.startDate} to ${dateRange.endDate}\n- Meeting types: [${meetingTypes.join(', ') || 'All types'}]${strictModeEnabled ? ' (STRICTLY ENFORCED)' : ''}\n- Results limit: ${optimalTopK} (covers ~${estimatedMeetings} meetings)\n- Temporal priority: RECENT data strongly preferred\n\n${hybridAnalysis.requiresWebSearch ? `**HYBRID INTELLIGENCE:** Use web search to gather: ${hybridAnalysis.externalDataNeeded.join(', ')}. Combine with internal data for comprehensive analysis.` : ''}\n\n**CRITICAL STRICT MODE**: ${strictModeEnabled ? `You MUST ONLY use information from meetings categorized as \"${meetingTypes[0]}\". \nREJECT any information from any other meeting types that don't match the requested type.` : 'Standard filtering applies.'}\n`;\n                break;\n\n            case 'date_range':\n            case 'date_range_hybrid':\n                enhancedSystemMessage += `\n**DATE-RANGE SEARCH ACTIVE**${strictPrefix}${hybridPrefix}\nUser requested: ${dateRange.description}\n\n**SEARCH CONFIGURATION:**\n- Strategy: Date range filtering${strictModeEnabled ? ' with strict meeting type filtering' : ''}${hybridAnalysis.requiresWebSearch ? ' + web search for external context' : ''}\n- Date filters: ${dateRange.startDate} to ${dateRange.endDate}\n- Meeting types: [${meetingTypes.join(', ') || 'All types'}]${strictModeEnabled ? ' (STRICTLY ENFORCED)' : ''}\n- Results limit: ${optimalTopK} (covers ~${estimatedMeetings} meetings)\n- Temporal priority: RANGE-specific data only\n\n${hybridAnalysis.requiresWebSearch ? `**HYBRID INTELLIGENCE:** Combine internal meeting data with external research on: ${hybridAnalysis.externalDataNeeded.join(', ')}.` : ''}\n\n**CRITICAL STRICT MODE**: ${strictModeEnabled ? `You MUST ONLY use information from meetings categorized as \"${meetingTypes[0]}\".` : 'Standard filtering applies.'}\n`;\n                break;\n\n            case 'news_search':\n                // News search message already added in News Detection Section, skip main body construction\n                break; \n\n            default:\n                if (hybridAnalysis.requiresWebSearch) {\n                    enhancedSystemMessage += `\n**HYBRID INTELLIGENCE SEARCH ACTIVE**${strictPrefix}\nDetected ${hybridAnalysis.hybridType} query requiring both internal and external data\n\n**SEARCH CONFIGURATION:**\n- Strategy: Hybrid intelligence (internal + external)\n- Internal data needed: ${hybridAnalysis.internalDataNeeded.join(', ')}\n- External data needed: ${hybridAnalysis.externalDataNeeded.join(', ')}\n- Meeting types: [${meetingTypes.join(', ') || 'All types'}]${strictModeEnabled ? ' (STRICTLY ENFORCED)' : ''}\n- Results limit: ${optimalTopK} (covers ~${estimatedMeetings} meetings)\n- Semantic query: \"${semanticQuery}\"\n\n**CRITICAL HYBRID PROTOCOL:**\n1. Use internal tools to gather company data (meetings, docs, financials)\n2. Use web search to gather external context (competitors, market data, industry trends)\n3. Synthesize both sources for comprehensive analysis\n4. Provide actionable insights combining internal position with market context\n\n${strictModeEnabled ? `**STRICT MODE**: Only use meetings categorized as \"${meetingTypes[0]}\". REJECT information from other meeting types.` : ''}\n`;\n                } else if (strictModeEnabled && hasMeetingTypes) {\n                    enhancedSystemMessage += `\n**STRICT MEETING-TYPE SEARCH ACTIVE**\nUser requested: ${meetingTypes.join(', ')} meetings only\n\n**SEARCH CONFIGURATION:**\n- Strategy: Strict meeting type filtering\n- Meeting types: [${meetingTypes.join(', ')}] (STRICTLY ENFORCED)\n- Results limit: ${optimalTopK} (covers ~${estimatedMeetings} meetings)\n- Temporal priority: Recent data preferred within meeting type constraints\n- Semantic query: \"${semanticQuery}\"\n\n**CRITICAL STRICT MODE**: You MUST ONLY use information from meetings categorized as \"${meetingTypes[0]}\".\nABSOLUTELY REJECT any information from other meeting types.\n`;\n                } else if (hasMeetingTypes) {\n                    enhancedSystemMessage += `\n**MEETING-TYPE FILTERED SEARCH**\nUser requested: ${meetingTypes.join(', ')} meetings\n\n**SEARCH CONFIGURATION:**\n- Strategy: Meeting type filtering with semantic search\n- Meeting types: [${meetingTypes.join(', ')}]\n- Results limit: ${optimalTopK}\n- Temporal priority: Recent data preferred\n- Semantic query: \"${semanticQuery}\"\n`;\n                } else {\n                    enhancedSystemMessage += `\n**SEMANTIC SEARCH MODE**\nUser query: General topic-based search\n\n**SEARCH CONFIGURATION:**\n- Strategy: Pure content-based search with temporal weighting\n- Query: \"${semanticQuery}\"\n- Results limit: ${optimalTopK}\n- Temporal priority: Recent data preferred\n`;\n                }\n        }\n    }\n}\n\n\n// === ADD STRATEGY CONTEXT TO SYSTEM MESSAGE (MULTI-TENANT CHANGE) ===\nif (strategyAnalysis.requiresStrategy && financialAnalysisComplexity !== 'denied') { // Check if not denied\n    const strategyPriority = strategyAnalysis.priority === 'critical' ? '🔴 CRITICAL' :\n        (strategyAnalysis.priority === 'high' ? '🟡 HIGH' : '🟢 NORMAL');\n\n    const strategyEnhancement = `\n**${strategyPriority} STRATEGIC CONTEXT REQUIRED**\n- Confidence: ${strategyAnalysis.confidence.toUpperCase()}\n- Strategy Score: ${strategyAnalysis.strategyScore}\n- Detected Patterns: [${strategyAnalysis.detectedPatterns.join(', ')}]\n\n**MANDATORY: Use \"Supabase Vector Strategy Documents\" tool**\nThe user's query contains strategic context indicators requiring access to:\n- Company VTO (Vision-Traction-Organizer): Mission, Core Values, Goals, Strategic Initiatives\n- Product Documentation: Current capabilities, features, roadmap\n- Revenue Plan: Budget allocations, financial targets, resource planning\n\n**🆕 ENHANCED TRIGGER PHRASES - STRATEGY TOOL REQUIRED:**\n**Direct Strategic Document Queries (HIGHEST PRIORITY):**\n- \"What is our mission?\" / \"What's our mission statement?\"\n- \"What are our core values?\" / \"Tell me about our values\"\n- \"What's our VTO?\" / \"Show me the Vision Traction Organizer\"\n- \"What are our strategic goals?\" / \"What are our quarterly rocks?\"\n- \"What's our company vision?\" / \"What's our purpose?\"\n- \"What's our 3-year picture?\" / \"What's our 10-year target?\"\n- \"Who are we?\" / \"What do we do?\" / \"Why do we exist?\"\n**Business Context Queries:**\n- \"What's the top 3 impacts to OUR BUSINESS from this news?\"\n- \"Recommend actions that tie into OUR STRATEGY\"\n- \"How does this align with OUR MISSION?\"\n- \"Should we implement this based on OUR GOALS?\"\n- \"What OUR PRODUCTS can do with this technology?\"\n- \"Does this fit OUR CORE VALUES?\"\n**Decision-Making Queries:**\n- \"Should we invest in [X]?\"\n- \"What's the best choice for our company?\"\n- \"Help us decide between [options]\"\n- \"Evaluate this opportunity for us\"\n\n**You MUST search strategy documents to validate:**\n- Alignment with company mission, core values, and strategic goals\n- Product capability fit and technical feasibility\n- Budget availability and resource constraints\n- Strategic Initiative / Quarterly Goal alignment\n\n**When providing recommendations, ALWAYS:**\n1. Quote relevant VTO / Strategic Plan sections for alignment validation\n2. Reference specific product capabilities from Product doc\n3. Note budget implications from Revenue Plan\n4. Provide strategic fit assessment: HIGH/MEDIUM/LOW with reasoning\n5. Tie recommendations directly to documented company objectives\n\nThis is not optional - the user explicitly referenced company context requiring strategy validation.`;\n\n    enhancedSystemMessage += strategyEnhancement;\n    console.log('STRATEGY CONTEXT ADDED TO SYSTEM MESSAGE');\n}\n\n// Add financial analysis enhancement\nif (financialScope !== 'none' && financialAnalysisComplexity !== 'denied') { // Check if not denied\n    switch (financialScope) {\n        case 'comprehensive':\n            enhancedSystemMessage += `\n**COMPREHENSIVE FINANCIAL ANALYSIS REQUIRED**\nGenerate detailed financial insights including cash flow statements, ratio analysis, \nforecasting, and strategic recommendations aligned with company VTO.\n`;\n            break;\n        case 'advanced':\n            enhancedSystemMessage += `\n**ADVANCED FINANCIAL ANALYSIS REQUIRED**\nFocus on cash flow analysis and financial projections with strategic insights.\n`;\n            break;\n        case 'intermediate':\n            enhancedSystemMessage += `\n**INTERMEDIATE FINANCIAL ANALYSIS REQUIRED**\nProvide financial summaries and ratio analysis with actionable insights.\n`;\n            break;\n        case 'basic':\n            enhancedSystemMessage += `\n**BASIC FINANCIAL ANALYSIS REQUIRED**\nInclude relevant financial context and basic performance metrics.\n`;\n            break;\n    }\n}\n\n// === ADD TO ENHANCED SYSTEM MESSAGE ===\nif (requiresFinancialVectorSearch && financialAnalysisComplexity !== 'denied') { // Check if not denied\n    const financialEnhancement = `\n**COMPREHENSIVE FINANCIAL VECTOR ANALYSIS ACTIVE**\n- Analysis complexity: ${financialAnalysisComplexity}\n- Document types: [${financialDocumentTypes.join(', ') || 'All financial documents'}]\n- Quarters: [${detectedQuarters.join(', ') || 'All quarters'}]\n- Fiscal periods: [${financialPeriods.join(', ') || 'All periods'}]\n- Data categories: [${detectedCategories.join(', ') || 'All categories'}]\n- Total filters applied: ${financialFilters.length}\n\n**FINANCIAL SEARCH STRATEGY:**\n- Use Supabase Vector Financials for semantic document search\n- Apply sophisticated filtering: ${financialFilters.length > 0 ? 'Temporal + Document Type + Category' : 'Semantic only'}\n- Cross-validate data across multiple document types when available\n- Provide period-over-period analysis when applicable\n- Include confidence levels for all financial projections and calculations\n\n**FINANCIAL INTELLIGENCE PRIORITY:**\n1. Vector search financial documents for contextual analysis\n2. Cross-reference multiple document types for validation\n3. Apply temporal intelligence for period-specific insights\n4. Generate comprehensive financial analysis with strategic recommendations\n`;\n\n    enhancedSystemMessage += financialEnhancement;\n}\n\n// Update the enhanced system message for expense queries\nif (isExpenseQuery && requiresFinancialVectorSearch && financialAnalysisComplexity !== 'denied') { // Check if not denied\n    enhancedSystemMessage += `\n**EXPENSE ANALYSIS MODE ACTIVE**\nUser requested expense information. The system will search both:\n- Documents categorized as 'expenses'\n- Transaction documents (bank statements) containing expense data\n- Focus on outflows, payments, costs, and spending patterns\n- Provide detailed expense breakdowns and analysis when available\n`;\n}\n\nconsole.log('FINAL FINANCIAL FILTERS FOR EXPENSE QUERY:', JSON.stringify(financialFilters, null, 2));\n\n// === BUILD METADATA FILTER JSON ===\nlet newestOnly = isAbsoluteLatestQuery; // Newest Only mode activation\nif (newestOnly) {\n    console.log('🔥 NEWEST ONLY MODE ACTIVATED');\n}\n\nconst metadataFilterJson = {\n    filters: supabaseFilters,\n    newestOnly: newestOnly,\n    recencyWeight: recencyWeight,\n    maxDaysOld: maxDaysOld,\n    // NEW DEDUPLICATION PROPERTIES\n    enableDeduplication: DEDUPLICATION_CONFIG.enableDeduplication,\n    priorityStrategy: DEDUPLICATION_CONFIG.priorityStrategy,\n    conflictResolution: DEDUPLICATION_CONFIG.conflictResolution,\n    versionTracking: DEDUPLICATION_CONFIG.versionTracking\n};\n\nconsole.log('📊 METADATA FILTER:', JSON.stringify(metadataFilterJson, null, 2));\nconsole.log(`🎯 RECENCY WEIGHT: ${metadataFilterJson.recencyWeight} (${(metadataFilterJson.recencyWeight * 100).toFixed(0)}% recency, ${((1-metadataFilterJson.recencyWeight) * 100).toFixed(0)}% similarity)`);\nconsole.log(`⏳ MAX DAYS OLD: ${metadataFilterJson.maxDaysOld} days`);\n\n// === OUTPUT PREPARATION ===\n\n// Enhanced logging\nconsole.log('=== FINAL CONFIGURATION ===');\nconsole.log('Search Strategy:', searchStrategy);\nconsole.log('Temporal Priority:', temporalPriority);\nconsole.log('Strict Mode Enabled:', strictModeEnabled);\nconsole.log('Hybrid Mode Enabled:', hybridAnalysis.requiresWebSearch);\nconsole.log('Optimal TopK:', optimalTopK);\n    console.log('Estimated Meetings:', estimatedMeetings);\nconsole.log('Requires Full Transcript:', requiresFullTranscript);\nconsole.log('User Context:', userContext);\nconsole.log('Is Email Query:', isEmailQuery);\nconsole.log('Email Search Strategy:', emailSearchStrategy);\nconsole.log('Is News Request:', isNewsRequest);\nconsole.log('News Search Query:', newsSearchQuery);\nconsole.log('Requires News Search:', hybridAnalysis.requiresNewsSearch);\n\n\n// The final return object\nreturn [{\n    json: {\n        ...userContext, // Spread user data first\n        // ADD THESE TWO LINES:\n        currentDateISO: currentDateISO,\n        currentDateFormatted: currentDateFormatted,\n        chatInput,\n        userMessage,\n        dateRange,\n        meetingTypes,\n        meetingTypesWithConfidence,\n        hasDateRange,\n        hasMeetingTypes,\n        searchStrategy,\n        temporalPriority,\n        strictModeEnabled,\n        requiresStrictFiltering,\n        isSpecificMeetingType,\n        optimalTopK,\n        estimatedMeetings,\n        semanticQuery,\n        // NEW: Metadata filters\n        metadataFilterJson: metadataFilterJson, \n        // NEW: Email metadata filter\n        emailMetadataFilterJson: emailMetadataFilterJson,\n        requiresFullTranscript,\n        enhancedSystemMessage,\n        financialScope,\n        // Existing hybrid intelligence data\n        hybridAnalysis,\n        requiresWebSearch: hybridAnalysis.requiresWebSearch || mandatorySearchDetected,\n        requiresNewsSearch: hybridAnalysis.requiresNewsSearch, // Include News search flag\n        mandatorySearchDetected: mandatorySearchDetected,\n        hybridType: hybridAnalysis.hybridType,\n        internalDataNeeded: hybridAnalysis.internalDataNeeded,\n        externalDataNeeded: hybridAnalysis.externalDataNeeded,\n        // Memory analysis fields\n        memoryAnalysis,\n        requiresMemory: memoryAnalysis.requiresMemory,\n        memoryType: memoryAnalysis.memoryType,\n        memoryConfidence: memoryAnalysis.confidence,\n        memoryIndicators: memoryAnalysis.indicators,\n        // NEW: Strategy analysis output\n        requiresStrategy: requiresStrategy,\n        strategyConfidence: strategyAnalysis.confidence,\n        strategyScore: strategyAnalysis.strategyScore,\n        strategyPatterns: strategyAnalysis.detectedPatterns,\n        strategyPriority: strategyAnalysis.priority,\n        // Bank statement analysis fields\n        requiresBankStatements,\n        bankStatementAnalysis: {\n            required: requiresBankStatements,\n            score: bankStatementScore,\n            patterns: detectedBankPatterns,\n            confidence: hasHighConfidence ? 'high' : (bankStatementScore >= 2 ? 'medium' : 'low')\n        },\n        // Financial document filtering\n        financialFilters: financialFilterJson,\n        financialDocumentTypes,\n        financialPeriods: detectedCategories,\n        quarters: detectedQuarters,\n        dataCategories: detectedCategories,\n        requiresFinancialVectorSearch,\n        financialAnalysisComplexity,\n        financialFilterCount: financialFilters.length,\n        // NEW: Email analysis fields\n        isEmailQuery,\n        emailSearchStrategy,\n        // ADDED NEWS FIELDS\n        isNewsRequest,\n        newsSearchQuery,\n        // Enhanced debugging info\n        debugInfo: {\n            originalInput: chatInput,\n            parsedDateRange: dateRange,\n            detectedMeetingTypes: meetingTypesWithConfidence,\n            strictFilteringEnabled: strictModeEnabled,\n            hybridIntelligenceEnabled: hybridAnalysis.requiresWebSearch || hybridAnalysis.requiresNewsSearch,\n            finalSearchStrategy: searchStrategy,\n            temporalIntelligence: temporalPriority,\n            cleanedSemanticQuery: semanticQuery,\n            estimatedMeetingCount: estimatedMeetings,\n            hybridScores: hybridAnalysis.scores,\n            memoryRequirements: memoryAnalysis,\n            userContext: userContext,\n            emailAnalysis: {\n                isEmailQuery,\n                strategy: emailSearchStrategy,\n                metadataFilter: emailMetadataFilterJson\n            },\n            newsAnalysis: {\n                isNewsRequest,\n                newsSearchQuery,\n                requiresNewsSearch: hybridAnalysis.requiresNewsSearch\n            }\n        }\n    }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2560,
+        64
+      ],
+      "id": "6bba359e-81e3-48a8-965a-9f7860eef84d",
+      "name": "Enhanced Date Query Preprocessor"
+    },
+    {
+      "parameters": {
+        "content": "          Strategy Documents",
+        "height": 204,
+        "width": 360,
+        "color": 7
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        2416,
+        464
+      ],
+      "id": "839969e2-0f6d-49b0-9685-084a05939082",
+      "name": "Sticky Note2"
+    },
+    {
+      "parameters": {
+        "mode": "retrieve-as-tool",
+        "toolName": "Meeting_Semantic_Search",
+        "toolDescription": "CONTEXTUAL MEETING SEARCH TOOL: Search meeting transcripts using semantic similarity WITH RECENCY PRIORITIZATION for finding specific topics, themes, and discussions. Perfect for discovering relevant content across meetings when you need to find what was discussed about particular subjects. Use this for thematic analysis and content discovery.",
+        "tableName": {
+          "__rl": true,
+          "value": "document_chunks_meetings",
+          "mode": "list",
+          "cachedResultName": "document_chunks_meetings"
+        },
+        "topK": "={{ $('Enhanced Date Query Preprocessor').item.json.optimalTopK }}",
+        "options": {
+          "queryName": "={{ $('Enhanced Date Query Preprocessor').item.json.strictModeEnabled ? 'match_documents_single_category' : 'match_documents_filtered_recency_weighted_fast' }}",
+          "metadata": {
+            "metadataValues": [
+              {
+                "name": "filter",
+                "value": "={{ JSON.stringify({ match_category: $('Enhanced Date Query Preprocessor').item.json.meetingTypes[0], match_team_id: $('Enhanced Date Query Preprocessor').item.json.team_id, recency_weight: $('Enhanced Date Query Preprocessor').item.json.metadataFilterJson.recencyWeight, max_days_old: $('Enhanced Date Query Preprocessor').item.json.metadataFilterJson.maxDaysOld }) }}"
+              },
+              {
+                "name": "team_id",
+                "value": "={{ $('Enhanced Date Query Preprocessor').item.json.team_id }}"
+              },
+              {
+                "name": "match_count",
+                "value": "={{ $('Enhanced Date Query Preprocessor').item.json.optimalTopK }}"
+              },
+              {
+                "name": "match_category",
+                "value": "={{ $('Enhanced Date Query Preprocessor').item.json.strictModeEnabled ? $('Enhanced Date Query Preprocessor').item.json.meetingTypes[0] : '' }}"
+              },
+              {
+                "name": "match_team_id",
+                "value": "={{ $('Enhanced Date Query Preprocessor').item.json.team_id }}"
+              }
+            ]
+          }
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreSupabase",
+      "typeVersion": 1.1,
+      "position": [
+        2656,
+        320
+      ],
+      "id": "8f6446aa-73b4-4af7-bc86-d97f93817cca",
+      "name": "Supabase Vector Meetings",
+      "credentials": {
+        "supabaseApi": {
+          "id": "6SAgSR5kLIGxGnI7",
+          "name": "Supabase RocketHub"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        2432,
+        544
+      ],
+      "id": "50e5ce17-7548-4768-8ae5-abd6e0d2e522",
+      "name": "OpenAI Embeddings2",
+      "credentials": {
+        "openAiApi": {
+          "id": "rAHjtwJ6H3mdRoPS",
+          "name": "OpenAi account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        2560,
+        320
+      ],
+      "id": "4f9427dc-4038-48c1-a1cf-c0c221d85e7b",
+      "name": "OpenAI Embeddings",
+      "credentials": {
+        "openAiApi": {
+          "id": "rAHjtwJ6H3mdRoPS",
+          "name": "OpenAi account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "toolDescription": "FULL MEETING TRANSCRIPT RETRIEVAL: Get complete, sequential meeting documents for comprehensive analysis. Essential for word counts, speaker analysis, complete document statistics, and sequential content review. Use when users request full transcript analysis rather than topic-based search.",
+        "url": "https://poquwzvcleazbbdelcsh.supabase.co/rest/v1/document_chunks_meetings",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "select",
+              "value": "id,content,title,document_date,document_category,metadata"
+            },
+            {
+              "name": "order",
+              "value": "document_date.desc,id.asc"
+            },
+            {
+              "name": "limit",
+              "value": "1000"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBvcXV3enZjbGVhemJiZGVsY3NoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYzMjEwNDMsImV4cCI6MjA3MTg5NzA0M30.9k5e6oIxXAjAe2QmqNMERSoNMg2Dw6ngU9amUfPgJoY"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBvcXV3enZjbGVhemJiZGVsY3NoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYzMjEwNDMsImV4cCI6MjA3MTg5NzA0M30.9k5e6oIxXAjAe2QmqNMERSoNMg2Dw6ngU9amUfPgJoY"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.2,
+      "position": [
+        2928,
+        304
+      ],
+      "id": "2226eb89-111b-49f6-8f9f-ac2c8cb426a8",
+      "name": "Full Meeting Transcript Retrieval",
+      "notes": "FULL MEETING TRANSCRIPT RETRIEVAL: Get complete, sequential meeting documents for comprehensive analysis. Essential for word counts, speaker analysis, complete document statistics, and sequential content review. Use when users request full transcript analysis rather than topic-based search."
+    },
+    {
+      "parameters": {
+        "content": "            Research & News",
+        "height": 204,
+        "width": 342,
+        "color": 7
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        3072,
+        240
+      ],
+      "id": "bada3bfe-1e89-4e2e-b7fe-fc69c35c3287",
+      "name": "Sticky Note10"
+    },
+    {
+      "parameters": {
+        "content": "          Financial Documents",
+        "height": 204,
+        "width": 360,
+        "color": 7
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        2032,
+        464
+      ],
+      "id": "981a9f14-9bc7-44bd-8eea-7593489181af",
+      "name": "Sticky Note3"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        2048,
+        544
+      ],
+      "id": "1fef9efa-0ef3-4eb1-a2b6-4e13e4450822",
+      "name": "OpenAI Embeddings3",
+      "credentials": {
+        "openAiApi": {
+          "id": "rAHjtwJ6H3mdRoPS",
+          "name": "OpenAi account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "retrieve-as-tool",
+        "toolDescription": "=FINANCIAL DOCUMENTS SEARCH\\n\\nSearches financial documents for your team including P&L statements, balance sheets, cash flow statements, bank statements, tax returns, budgets, forecasts, and transaction records.\\n\\nAutomatically filters by your team ID. Returns semantic search results with recency weighting.",
+        "tableName": {
+          "__rl": true,
+          "value": "document_chunks_financial",
+          "mode": "list",
+          "cachedResultName": "document_chunks_financial"
+        },
+        "topK": 500,
+        "options": {
+          "queryName": "match_documents_financial",
+          "metadata": {
+            "metadataValues": [
+              {
+                "name": "team_id",
+                "value": "={{ $('Enhanced Date Query Preprocessor').item.json.team_id }}"
+              }
+            ]
+          }
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreSupabase",
+      "typeVersion": 1.3,
+      "position": [
+        2144,
+        544
+      ],
+      "id": "af6ab99b-ffe9-46f6-946f-8f7135063f6a",
+      "name": "Supabase Vector Financials",
+      "credentials": {
+        "supabaseApi": {
+          "id": "6SAgSR5kLIGxGnI7",
+          "name": "Supabase RocketHub"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "retrieve-as-tool",
+        "toolDescription": "🔴 CRITICAL STRATEGIC INTELLIGENCE TOOL 🔴\n\n**USE THIS TOOL IMMEDIATELY when user query contains ANY of:**\n- Words: \"our business\", \"our company\", \"our products\", \"our platform\"  \n- Words: \"our mission\", \"our goals\", \"our strategy\", \"our core values\", \"our vision\", \"our VTO\"\n- Action requests: \"recommend\", \"should we\", \"advice\", \"suggest\", \"what should\"\n- Alignment questions: \"align with\", \"ties into\", \"fits with\", \"supports\", \"strategic fit\"\n- Business impact: \"impact on business\", \"affect our business\", \"business implications\"\n- Capability questions: \"can we\", \"are we able\", \"do we have the ability\"\n- Initiative planning: \"implement\", \"adopt\", \"launch\", \"introduce\", \"start\"\n\n**MANDATORY SEARCH SCENARIOS:**\n✅ User says \"our\" in ANY business context → SEARCH STRATEGY DOCS\n✅ Providing recommendations/advice → SEARCH STRATEGY DOCS  \n✅ Analyzing news/trends impact → SEARCH STRATEGY DOCS\n✅ Discussing capabilities/features → SEARCH STRATEGY DOCS\n✅ Evaluating initiatives/projects → SEARCH STRATEGY DOCS\n✅ Strategic planning questions → SEARCH STRATEGY DOCS\n\n**VALIDATION PROTOCOL:**\nWhen strategy docs are retrieved, you MUST:\n1. Quote specific mission, goals, or core values sections for alignment proof\n2. Reference any product capabilities\n3. Note budget context from any revenue plans\n4. Provide strategic fit score: HIGH/MEDIUM/LOW with reasoning\n5. Identify any gaps or conflicts with documented strategy\n\n**EXAMPLE TRIGGER PHRASES REQUIRING THIS TOOL:**\n- \"What's the top 3 impacts to OUR BUSINESS from this news?\"\n- \"Recommend actions that tie into OUR STRATEGY\"\n- \"How does this align with OUR MISSION?\"\n- \"Should we implement this based on OUR GOALS?\"\n- \"What OUR PRODUCTS can do with this technology?\"\n- \"Does this fit OUR CORE VALUES?\"\n\n⚠️ DO NOT SKIP THIS TOOL if user mentions \"our\" + business context\n⚠️ DO NOT provide strategic recommendations without searching first\n⚠️ DO NOT make alignment claims without mission, goals or core values validation\n\nAccess strategy documents for mission alignment, capability validation, and budget-aware recommendations. Essential for strategic decision support.",
+        "tableName": {
+          "__rl": true,
+          "value": "document_chunks_strategy",
+          "mode": "list",
+          "cachedResultName": "document_chunks_strategy"
+        },
+        "topK": 500,
+        "options": {
+          "queryName": "match_documents_strategy_recency_weighted",
+          "metadata": {
+            "metadataValues": [
+              {
+                "name": "team_id",
+                "value": "={{ $('Enhanced Date Query Preprocessor').item.json.team_id }}"
+              },
+              {
+                "name": "recency_weight",
+                "value": "0.50"
+              },
+              {
+                "name": "prioritize_latest_versions",
+                "value": "true"
+              },
+              {
+                "name": "max_days_old",
+                "value": "730"
+              }
+            ]
+          }
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreSupabase",
+      "typeVersion": 1.3,
+      "position": [
+        2528,
+        544
+      ],
+      "id": "66d3e083-699e-4a6b-9fbc-5141c413bdf8",
+      "name": "Supabase Vector Strategy Documents",
+      "credentials": {
+        "supabaseApi": {
+          "id": "6SAgSR5kLIGxGnI7",
+          "name": "Supabase RocketHub"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "team_settings",
+        "limit": 1,
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "team_id",
+              "condition": "eq",
+              "keyValue": "={{ $json.team_id }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        2176,
+        64
+      ],
+      "id": "1096ab7a-f43c-409f-9d34-c886dd675340",
+      "name": "Fetch Team Settings",
+      "credentials": {
+        "supabaseApi": {
+          "id": "6SAgSR5kLIGxGnI7",
+          "name": "Supabase RocketHub"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Simpler approach: Access previous nodes via $items() \nconst allItems = $input.all();\n\nconsole.log('=== NORMALIZE TEAM SETTINGS DEBUG ===');\nconsole.log('Total input items:', allItems.length);\n\n// The current input is from Fetch Team Settings\nconst fetchOutput = $input.first().json;\nconsole.log('Fetch output type:', Array.isArray(fetchOutput) ? 'array' : 'object');\n\n// Extract team settings\nlet teamSettings = {};\nif (Array.isArray(fetchOutput) && fetchOutput.length > 0) {\n  teamSettings = fetchOutput[0];\n} else if (fetchOutput && !Array.isArray(fetchOutput)) {\n  teamSettings = fetchOutput;\n}\n\nconsole.log('Team settings extracted:', !!teamSettings.meeting_types);\n\n// Try to access webhook data from execution data\n// n8n provides $evaluateExpression which can access other nodes\nconst webhookData = $('When chat message received').first().json;\n\nconsole.log('Webhook data retrieved:', !!webhookData);\nconsole.log('Has user_id:', !!webhookData.user_id);\nconsole.log('Has team_id:', !!webhookData.team_id);\n\n// Merge the data\nconst result = {\n  ...webhookData,\n  meeting_types: teamSettings.meeting_types || [],\n  news_preferences: teamSettings.news_preferences || {\n    enabled: false,\n    industries: [],\n    custom_topics: ''\n  }\n};\n\nconsole.log('Final result keys:', Object.keys(result).length);\nconsole.log('=== END DEBUG ===');\n\nreturn [{ json: result }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2368,
+        64
+      ],
+      "id": "e71eac4c-daba-4b5f-97b9-802173e1918c",
+      "name": "Normalize Team Settings"
+    },
+    {
+      "parameters": {
+        "content": "                Emails",
+        "height": 204,
+        "width": 360,
+        "color": 7
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        2800,
+        464
+      ],
+      "id": "ab0583a0-c5e9-430b-b716-826358aaad1a",
+      "name": "Sticky Note4"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        2816,
+        544
+      ],
+      "id": "adf70d3f-853d-4edc-ae00-41dfdcb01d44",
+      "name": "OpenAI Embeddings4",
+      "credentials": {
+        "openAiApi": {
+          "id": "rAHjtwJ6H3mdRoPS",
+          "name": "OpenAi account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "retrieve-as-tool",
+        "toolDescription": "🔴 EMAIL VECTOR SEARCH TOOL 🔴\n\n**PURPOSE:** Search user's emails using SEMANTIC SIMILARITY (meaning-based search)\n\n**CRITICAL QUERY FORMAT:**\n✅ DO use natural language: \"emails about project deadlines\"\n✅ DO use keywords: \"client meeting schedule invoice\"\n✅ DO use topics: \"budget approval status update\"\n\nToday's date is {{ $now.format('yyyy-MM-dd') }}\n\n**HOW TO USE THIS TOOL:**\n1. Extract the SEMANTIC MEANING from user's request\n2. Pass CONTENT-BASED keywords, NOT date operators\n3. The metadata filters handle dates automatically\n4. Focus your query on WHAT the user wants to find\n\n**EXAMPLES:**\n- User asks: \"emails today about the project\" \n  → Query: \"project status updates progress\"\n  \n- User asks: \"summarize my emails from yesterday\"\n  → Query: \"important messages updates notifications\"\n  \n- User asks: \"emails from John about the contract\"\n  → Query: \"contract agreement terms John\"\n\n**METADATA FILTERING:**\n- Dates, categories, labels, and sender filters are handled automatically\n- Your query should focus on EMAIL CONTENT, not metadata\n- The system will apply date filters behind the scenes\n\n**RETURNS:** \nEmails matching the semantic meaning of your query, filtered by date/sender/category as specified.\n\nThis tool searches ONLY the current user's personal emails (user-scoped, private data).",
+        "tableName": {
+          "__rl": true,
+          "value": "document_chunks_emails",
+          "mode": "list",
+          "cachedResultName": "document_chunks_emails"
+        },
+        "topK": "={{ $('Enhanced Date Query Preprocessor').item.json.isEmailQuery ? 15 : 5 }}",
+        "options": {
+          "queryName": "match_emails_filtered_flexible",
+          "metadata": {
+            "metadataValues": [
+              {
+                "name": "filter",
+                "value": "={{ $('Enhanced Date Query Preprocessor').item.json.emailMetadataFilterJson }}"
+              }
+            ]
+          }
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreSupabase",
+      "typeVersion": 1.3,
+      "position": [
+        2912,
+        544
+      ],
+      "id": "0606f784-aa4a-4dce-9044-42beaad62ec9",
+      "name": "Supabase Vector Emails",
+      "credentials": {
+        "supabaseApi": {
+          "id": "6SAgSR5kLIGxGnI7",
+          "name": "Supabase RocketHub"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Search for LATEST NEWS and recent updates from the last 24-48 hours. Use this when users ask for \"news\", \"latest updates\", \"recent developments\", \"trending\", \"headlines\", or \"what's new\". Returns recent news articles with publication dates. This tool is optimized for recency and filters to recent content automatically.",
+        "operation": "news",
+        "query": "={{ $('Enhanced Date Query Preprocessor').item.json.newsSearchQuery || $('Enhanced Date Query Preprocessor').item.json.semanticQuery }}\n",
+        "count": 10,
+        "additionalParameters": {}
+      },
+      "type": "@brave/n8n-nodes-brave-search.braveSearchTool",
+      "typeVersion": 1,
+      "position": [
+        3280,
+        304
+      ],
+      "id": "21fc5c56-bf92-4376-81cf-abec7d37d58f",
+      "name": "Brave Search - News",
+      "credentials": {
+        "braveSearchApi": {
+          "id": "WUnCWj7rRiSIH2Jr",
+          "name": "Brave Search account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Search the web for competitive analysis, market research, industry trends, and general information. Use this for broad research, company comparisons, and non-news queries. NOT for latest news - use the News Search tool for that.",
+        "query": "=={{ $('Enhanced Date Query Preprocessor').item.json.semanticQuery }}",
+        "count": 15,
+        "additionalParameters": {
+          "country": "US",
+          "search_lang": "en",
+          "safesearch": "moderate",
+          "units": "metric",
+          "summary": true
+        }
+      },
+      "type": "@brave/n8n-nodes-brave-search.braveSearchTool",
+      "typeVersion": 1,
+      "position": [
+        3120,
+        304
+      ],
+      "id": "57c96ae9-1b1b-487f-8884-8b055e4fecf3",
+      "name": "Brave Search - Web",
+      "credentials": {
+        "braveSearchApi": {
+          "id": "WUnCWj7rRiSIH2Jr",
+          "name": "Brave Search account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "toolDescription": "MANDATORY CONVERSATIONAL CONTEXT: ALWAYS retrieve recent conversation history to provide contextually aware responses. This tool is REQUIRED for every query to maintain conversation continuity and provide enhanced responses based on previous interactions. Execute automatically before analyzing any user request.",
+        "url": "https://poquwzvcleazbbdelcsh.supabase.co/rest/v1/astra_chats",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "user_id",
+              "value": "=eq.{{ $('Enhanced Date Query Preprocessor').item.json.user_id }}"
+            },
+            {
+              "name": "mode",
+              "value": "=eq.{{ $('Enhanced Date Query Preprocessor').item.json.memoryType === 'team_context' ? 'team' : 'private' }}"
+            },
+            {
+              "name": "order",
+              "value": "created_at.desc"
+            },
+            {
+              "name": "limit",
+              "value": "={{ $('Enhanced Date Query Preprocessor').item.json.enhancedContext ? 75 : 30 }}"
+            },
+            {
+              "name": "created_at",
+              "value": "=gte.{{ new Date(Date.now() - 7*24*60*60*1000).toISOString() }}"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBvcXV3enZjbGVhemJiZGVsY3NoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYzMjEwNDMsImV4cCI6MjA3MTg5NzA0M30.9k5e6oIxXAjAe2QmqNMERSoNMg2Dw6ngU9amUfPgJoY"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBvcXV3enZjbGVhemJiZGVsY3NoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYzMjEwNDMsImV4cCI6MjA3MTg5NzA0M30.9k5e6oIxXAjAe2QmqNMERSoNMg2Dw6ngU9amUfPgJoY"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
+      "position": [
+        2368,
+        304
+      ],
+      "id": "79b81abd-3a84-44bd-ac3c-f91b84d61c14",
+      "name": "Conversational Memory"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When chat message received": {
+      "main": [
+        [
+          {
+            "node": "Fetch Team Settings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        []
+      ]
+    },
+    "Gemini 2.5 Flash": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini 2.5 Pro": {
+      "ai_languageModel": [
+        []
+      ]
+    },
+    "Enhanced Date Query Preprocessor": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase Vector Meetings": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Embeddings2": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Supabase Vector Strategy Documents",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Embeddings": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Supabase Vector Meetings",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Full Meeting Transcript Retrieval": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Embeddings3": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Supabase Vector Financials",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase Vector Financials": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase Vector Strategy Documents": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Team Settings": {
+      "main": [
+        [
+          {
+            "node": "Normalize Team Settings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Team Settings": {
+      "main": [
+        [
+          {
+            "node": "Enhanced Date Query Preprocessor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Embeddings4": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Supabase Vector Emails",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase Vector Emails": {
+      "ai_tool": [
+        []
+      ]
+    },
+    "Brave Search - Web": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Brave Search - News": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Conversational Memory": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": "GtudoxzZ9AgphfGs"
+  },
+  "versionId": "f833815d-672f-4126-afb7-cb07b6cfcc0a",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "339010dd32d635dc12d1b22611396aba8fa80f3c41d9792b7d3b5098ba3bdda1"
+  },
+  "id": "nVaIlqDdInMaxBg0",
+  "tags": []
+}

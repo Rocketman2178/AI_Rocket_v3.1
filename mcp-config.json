@@ -1,0 +1,19 @@
+{
+  "mcpServers": {
+    "n8n": {
+      "command": "docker",
+      "args": [
+        "run",
+        "-i",
+        "--rm",
+        "-e",
+        "MCP_MODE=stdio",
+        "-e",
+        "N8N_API_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJkNTA5YzQ2MS03MzBlLTRmMWYtYjkzOC0yYTA3YWJiZTA0MTciLCJpc3MiOiJuOG4iLCJhdWQiOiJwdWJsaWMtYXBpIiwiaWF0IjoxNzYzNjA4MzU1fQ.bjJDJ3QCPfG7VxusPAIQJ9-uSIsNw7YPJNmqqWCDxBw",
+        "-e",
+        "N8N_API_URL=https://healthrocket.app.n8n.cloud/",
+        "ghcr.io/czlonkowski/n8n-mcp:latest"
+      ]
+    }
+  }
+}

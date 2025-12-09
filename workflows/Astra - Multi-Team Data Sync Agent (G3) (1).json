@@ -1,0 +1,1956 @@
+{
+  "name": "Astra - Multi-Team Data Sync Agent (G3)",
+  "nodes": [
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "user_drive_connections",
+        "returnAll": true,
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "is_active",
+              "condition": "eq",
+              "keyValue": "true"
+            },
+            {
+              "keyName": "connection_status",
+              "condition": "eq",
+              "keyValue": "connected"
+            }
+          ]
+        }
+      },
+      "id": "f656d552-2049-4fb5-b507-bf439f959de6",
+      "name": "Get Active Drive Connections",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        256,
+        304
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "6SAgSR5kLIGxGnI7",
+          "name": "Supabase RocketHub"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "8b7fefc1-93e0-4503-aad6-2a36767722f8",
+      "name": "Loop Over Each Team",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        480,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://poquwzvcleazbbdelcsh.supabase.co/rest/v1/documents",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "team_id",
+              "value": "=eq.{{ $json.team_id }}"
+            },
+            {
+              "name": "source_type",
+              "value": "eq.google_drive"
+            },
+            {
+              "name": "select",
+              "value": "source_id,source_modified_time"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "ac7c6646-9305-454a-9934-a37c094ecbcf",
+      "name": "Get Team's Existing Documents",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        736,
+        112
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "6SAgSR5kLIGxGnI7",
+          "name": "Supabase RocketHub"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "https://www.googleapis.com/drive/v3/files",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "q",
+              "value": "='{{ $('Loop Over Each Team').item.json.meetings_folder_id }}' in parents and (mimeType='application/vnd.google-apps.document' or mimeType='application/pdf') and trashed=false"
+            },
+            {
+              "name": "fields",
+              "value": "files(id,name,mimeType,modifiedTime,webViewLink,size)"
+            },
+            {
+              "name": "pageSize",
+              "value": "500"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('Loop Over Each Team').item.json.access_token }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "203d87b3-d6d6-4725-bea4-2bd2986a3978",
+      "name": "Get Meetings Folder Files",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1072,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://www.googleapis.com/drive/v3/files",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "q",
+              "value": "='{{ $('Loop Over Each Team').item.json.strategy_folder_id }}' in parents and (mimeType='application/vnd.google-apps.document' or mimeType='application/pdf') and trashed=false"
+            },
+            {
+              "name": "fields",
+              "value": "files(id,name,mimeType,modifiedTime,webViewLink,size)"
+            },
+            {
+              "name": "pageSize",
+              "value": "500"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('Loop Over Each Team').item.json.access_token }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "cd759531-f183-4ca2-b23c-cd5ab4cf4f86",
+      "name": "Get Strategy Folder Files",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1072,
+        384
+      ]
+    },
+    {
+      "parameters": {
+        "numberInputs": 4
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        1472,
+        272
+      ],
+      "id": "d1818c01-7c8e-4c9f-8861-47d888126b27",
+      "name": "Merge Discovery Results"
+    },
+    {
+      "parameters": {
+        "jsCode": "// FIXED: Collect existing docs that arrive as individual items\nconst MAX_FILES_PER_RUN = 50;\n\nconsole.log('=== COMBINE & FILTER (FIXED - Individual Items) ===');\n\nconst allInputs = $input.all();\nconsole.log(`📥 Total inputs received: ${allInputs.length}`);\n\n// ============================================\n// SEPARATE INPUTS BY TYPE\n// ============================================\nlet existingDocsArray = [];\nlet meetingsFiles = [];\nlet strategyFiles = [];\nlet financialFiles = [];\n\nlet meetingsContext = null;\nlet strategyContext = null;\nlet financialContext = null;\n\nfor (const input of allInputs) {\n  const data = input.json;\n  \n  // FIX APPLIED HERE:\n  // Instead of counting keys (keys.length === 2), we check for properties.\n  // Database records have 'source_id' but do NOT have 'mimeType' (which Drive files always have).\n  const isExistingDoc = data.source_id !== undefined && \n                        data.source_modified_time !== undefined &&\n                        data.mimeType === undefined; \n  \n  if (isExistingDoc) {\n    existingDocsArray.push(data);\n    continue;\n  }\n  \n  // TAGGED FILES COLLECTION\n  if (data.files && Array.isArray(data.files) && data.folder_type) {\n    console.log(`📦 Found ${data.folder_type} collection: ${data.files.length} files`);\n    \n    switch (data.folder_type) {\n      case 'meetings':\n        meetingsFiles = data.files;\n        meetingsContext = {\n          team_id: data.team_id,\n          user_id: data.user_id,\n          access_token: data.access_token,\n          folder_id: data.source_folder\n        };\n        break;\n      case 'strategy':\n        strategyFiles = data.files;\n        strategyContext = {\n          team_id: data.team_id,\n          user_id: data.user_id,\n          access_token: data.access_token,\n          folder_id: data.source_folder\n        };\n        break;\n      case 'financial':\n        financialFiles = data.files;\n        financialContext = {\n          team_id: data.team_id,\n          user_id: data.user_id,\n          access_token: data.access_token,\n          folder_id: data.source_folder\n        };\n        break;\n    }\n  }\n}\n\nconsole.log(`\\n📊 DATA COLLECTED:`);\nconsole.log(`   Existing docs: ${existingDocsArray.length}`);\nconsole.log(`   Meetings files: ${meetingsFiles.length}`);\nconsole.log(`   Strategy files: ${strategyFiles.length}`);\nconsole.log(`   Financial files: ${financialFiles.length}`);\n\nconst currentTeamId = meetingsContext?.team_id || strategyContext?.team_id || financialContext?.team_id;\n\nif (!currentTeamId) {\n  console.error('❌ CRITICAL: No team_id found');\n  return [];\n}\n\nconsole.log(`\\n🎯 Processing for team: ${currentTeamId}`);\n\n// ============================================\n// BUILD EXISTING DOCS MAP\n// ============================================\nconst existingMap = new Map();\n\nconsole.log(`\\n📋 Building map from ${existingDocsArray.length} existing docs...`);\n\nexistingDocsArray.forEach((doc, idx) => {\n  if (doc && doc.source_id) {\n    const modTime = doc.source_modified_time ? new Date(doc.source_modified_time) : null;\n    existingMap.set(doc.source_id, modTime);\n    \n    if (idx < 5) {\n      console.log(`  ${idx + 1}. ${doc.source_id.substring(0, 40)}... = ${modTime?.toISOString() || 'null'}`);\n    }\n  }\n});\n\nconsole.log(`✅ Built map with ${existingMap.size} unique source_ids`);\n\n// ============================================\n// FILTER FILES\n// ============================================\nconst allNewFiles = [];\nlet counters = { new: 0, updated: 0, skipped: 0 };\n\nfunction createFileObject(file, folderType, context, reason, isSheet) {\n  return {\n    file_id: file.id,\n    file_name: file.name,\n    mime_type: file.mimeType,\n    modified_time: file.modifiedTime,\n    web_view_link: file.webViewLink,\n    size: file.size,\n    folder_type: folderType,\n    parent_folder_id: context.folder_id,\n    team_id: context.team_id,\n    user_id: context.user_id,\n    access_token: context.access_token,\n    processing_reason: reason,\n    is_google_sheet: isSheet\n  };\n}\n\nfunction processFile(file, folderType, context) {\n  if (!file || !file.id) return;\n  if (!context) return;\n\n  if (file.mimeType === 'application/pdf') {\n    counters.skipped++;\n    return;\n  }\n\n  const isGoogleSheet = file.mimeType === 'application/vnd.google-apps.spreadsheet';\n  const fileModified = new Date(file.modifiedTime);\n\n  if (isGoogleSheet && folderType === 'financial') {\n    let foundExistingTab = false;\n    let mostRecentTabModified = null;\n\n    for (const [docSourceId, docModified] of existingMap.entries()) {\n      if (docSourceId.startsWith(file.id + '_')) {\n        foundExistingTab = true;\n        if (docModified && (!mostRecentTabModified || docModified > mostRecentTabModified)) {\n          mostRecentTabModified = docModified;\n        }\n      }\n    }\n\n    if (!foundExistingTab) {\n      console.log(`   ✅ NEW SHEET: ${file.name}`);\n      allNewFiles.push(createFileObject(file, folderType, context, 'new_file', true));\n      counters.new++;\n      return;\n    }\n\n    if (mostRecentTabModified && fileModified > mostRecentTabModified) {\n      console.log(`   🔄 UPDATED SHEET: ${file.name}`);\n      allNewFiles.push(createFileObject(file, folderType, context, 'updated_file', true));\n      counters.updated++;\n      return;\n    }\n\n    console.log(`   ⏭️ SKIP: ${file.name}`);\n    counters.skipped++;\n    return;\n  }\n\n  const existingModified = existingMap.get(file.id);\n\n  if (existingModified === undefined) {\n    console.log(`   ✅ NEW: ${file.name}`);\n    allNewFiles.push(createFileObject(file, folderType, context, 'new_file', false));\n    counters.new++;\n  } else if (existingModified && fileModified > existingModified) {\n    console.log(`   🔄 UPDATED: ${file.name}`);\n    allNewFiles.push(createFileObject(file, folderType, context, 'updated_file', false));\n    counters.updated++;\n  } else {\n    console.log(`   ⏭️ SKIP: ${file.name}`);\n    counters.skipped++;\n    return;\n  }\n}\n\nconsole.log(`\\n=== PROCESSING MEETINGS ===`);\nif (meetingsContext) {\n  meetingsFiles.forEach(f => processFile(f, 'meetings', meetingsContext));\n}\n\nconsole.log(`\\n=== PROCESSING STRATEGY ===`);\nif (strategyContext) {\n  strategyFiles.forEach(f => processFile(f, 'strategy', strategyContext));\n}\n\nconsole.log(`\\n=== PROCESSING FINANCIAL ===`);\nif (financialContext) {\n  financialFiles.forEach(f => processFile(f, 'financial', financialContext));\n}\n\nconsole.log(`\\n=== RESULTS ===`);\nconsole.log(`✅ New: ${counters.new}`);\nconsole.log(`🔄 Updated: ${counters.updated}`);\nconsole.log(`⏭️ Skipped: ${counters.skipped}`);\nconsole.log(`📤 Total: ${allNewFiles.length}`);\n\nlet finalOutput = allNewFiles;\nif (allNewFiles.length > MAX_FILES_PER_RUN) {\n  console.log(`⚠️ Capping to ${MAX_FILES_PER_RUN} files`);\n  finalOutput = allNewFiles.slice(0, MAX_FILES_PER_RUN);\n}\n\nif (finalOutput.length === 0) {\n  console.log(`✅ Nothing to process`);\n  return [{\n    json: {\n      has_files: false,\n      team_id: currentTeamId,\n      reason: 'no_processable_files',\n      stats: counters\n    }\n  }];\n}\n\nconsole.log(`🚀 Outputting ${finalOutput.length} files`);\nreturn finalOutput.map(file => ({ json: { ...file, has_files: true } }));\n"
+      },
+      "id": "b6a66263-d2a1-4d99-be1b-80d8054247f5",
+      "name": "Combine & Filter NEW Files (Improved)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1648,
+        304
+      ],
+      "alwaysOutputData": false,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "check_has_files",
+              "leftValue": "={{ $json.has_files }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "0d7a30cc-71e4-46df-9c54-5e302878685f",
+      "name": "Check If Any Files to Process",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1824,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Batch new files into groups of 5 - FILTER OUT EMPTY ITEMS\nconst batchSize = 5;\nconst allItems = $input.all();\n\nconsole.log(`=== BATCHING FILES ===`);\nconsole.log(`Total items received: ${allItems.length}`);\n\n// FILTER: Only process items that have files to process\nconst files = allItems.filter(item => {\n  const hasFiles = item.json.has_files === true;\n  const isFile = item.json.file_id !== undefined;\n  \n  if (!hasFiles && !isFile) {\n    console.log(`⏭️ Skipping item: ${JSON.stringify(item.json).substring(0, 100)}...`);\n  }\n  \n  return hasFiles || isFile;\n});\n\nconsole.log(`Files to process after filtering: ${files.length}`);\nconsole.log(`Batch size: ${batchSize}`);\n\nif (files.length === 0) {\n  console.log(`⚠️ No files to process - returning empty result`);\n  return [{\n    json: {\n      has_files: false,\n      reason: 'no_files_after_filtering'\n    }\n  }];\n}\n\nconst batches = [];\nfor (let i = 0; i < files.length; i += batchSize) {\n  const batch = files.slice(i, i + batchSize);\n  batches.push({\n    json: {\n      batch_number: Math.floor(i / batchSize) + 1,\n      total_batches: Math.ceil(files.length / batchSize),\n      files: batch.map(item => item.json)\n    }\n  });\n}\n\nconsole.log(`✅ Created ${batches.length} batches`);\nbatches.forEach((batch, idx) => {\n  console.log(`  Batch ${idx + 1}: ${batch.json.files.length} files`);\n});\n\nreturn batches;\n"
+      },
+      "id": "d774dc56-4688-4516-a89a-72b6266cacec",
+      "name": "Batch into Groups of 10",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        96,
+        752
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "bf32a097-2a82-4e37-810e-9d1dde655679",
+      "name": "Loop Over Batches",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        288,
+        752
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "console.log('=== STARTING DOWNLOAD ===');\nconst items = $input.all();\nconsole.log(`Total input items: ${items.length}`);\n\nconst downloadedFiles = [];\n\nfor (const item of items) {\n  const data = item.json;\n  \n  // Handle both batch format and direct file format\n  let filesToProcess = [];\n  \n  if (data.files && Array.isArray(data.files)) {\n    // This is a batch object from \"Loop Over Batches\"\n    filesToProcess = data.files;\n    console.log(`DOWNLOADING BATCH ${data.batch_number || '?'}/${data.total_batches || '?'}`);\n    console.log(`Files in batch: ${filesToProcess.length}`);\n  } else if (data.file_id) {\n    // This is a single file object (shouldn't happen, but handle it)\n    filesToProcess = [data];\n    console.log(`Processing single file: ${data.file_name}`);\n  } else {\n    // Unknown format - skip\n    console.log(`⚠️ Skipping item - no files found:`, Object.keys(data).join(', '));\n    continue;\n  }\n  \n  for (const file of filesToProcess) {\n    console.log(`Processing file: ${file.file_name} (${file.file_id})`);\n    \n    try {\n      const response = await this.helpers.httpRequest({\n        method: 'GET',\n        url: `https://www.googleapis.com/drive/v3/files/${file.file_id}/export?mimeType=text/plain`,\n        headers: {\n          'Authorization': `Bearer ${file.access_token}`\n        }\n      });\n      \n      downloadedFiles.push({\n        ...file,\n        content: response\n      });\n      \n      console.log(`✓ Downloaded: ${file.file_name}`);\n      \n    } catch (error) {\n      console.error(`✗ Error downloading ${file.file_name}:`, error.message);\n      downloadedFiles.push({\n        ...file,\n        content: '',\n        download_error: error.message\n      });\n    }\n  }\n}\n\nconsole.log(`=== TOTAL FILES DOWNLOADED: ${downloadedFiles.length} ===`);\nreturn downloadedFiles.map(file => ({ json: file }));\n\n"
+      },
+      "id": "ed7bd7fc-8be0-4e9f-8d1a-238b6e389c1b",
+      "name": "Download Content (Batch)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        96,
+        976
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Filter out failed downloads\nconst items = $input.all();\nconst successfulDownloads = items.filter(item => {\n  const file = item.json;\n  \n  // Check if content was successfully downloaded\n  const hasContent = file.content && file.content.length >= 50;\n  const noError = !file.download_error;\n  \n  return hasContent && noError;\n});\n\nconsole.log(`Successful downloads: ${successfulDownloads.length}/${items.length}`);\n\nif (successfulDownloads.length === 0) {\n  console.log('No successful downloads in this batch');\n  return [];\n}\n\nreturn successfulDownloads;\n"
+      },
+      "id": "917f7e34-f90c-4f70-bbc8-07a6b2b97689",
+      "name": "Filter Successful Downloads",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        272,
+        976
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const crypto = require('crypto');\nconst results = [];\n\nconsole.log('=== PREPARE DOCUMENTS FOR STORAGE ===');\nconst inputItems = $input.all();\n\nif (inputItems.length === 0) return [];\n\n// Generate UUID\nfunction generateUUID() {\n  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {\n    const r = Math.random() * 16 | 0;\n    const v = c == 'x' ? r : (r & 0x3 | 0x8);\n    return v.toString(16);\n  });\n}\n\nconst batchId = generateUUID();\n\nfor (const item of $input.all()) {\n  const data = item.json;\n  const teamId = data.team_id;\n  \n  if (!teamId) continue;\n\n  // 1. NORMALIZE CONTENT\n  let finalContent = '';\n  if (Array.isArray(data.content)) {\n    finalContent = data.content.map(segment => segment.sentence || '').join(' ');\n  } else if (typeof data.content === 'string') {\n    finalContent = data.content;\n  } else {\n    finalContent = JSON.stringify(data.content || '');\n  }\n  data.content = finalContent;\n  \n  if (!data.content || data.content.length < 50) continue;\n  \n  let documentType = 'general_document';\n  if (data.folder_type === 'meetings') documentType = 'meetings';\n  else if (data.folder_type === 'strategy') documentType = 'strategy';\n  \n  const contentHash = crypto.createHash('md5').update(data.content.substring(0, 500)).digest('hex');\n  \n  // 2. PREPARE DATES\n  // accurately capture the source time, defaulting to now only if missing\n  const sourceTime = data.modified_time || data.source_modified_time || new Date().toISOString();\n  const processingTime = new Date().toISOString(); // This is the insert time\n\n  const document = {\n    team_id: teamId,\n    user_id: data.user_id,\n    batch_id: batchId,\n    source_type: 'google_drive',\n    source_id: data.file_id || data.source_id,\n    document_type: documentType,\n    folder_type: data.folder_type,\n    title: (data.file_name || data.title || 'Untitled Document').substring(0, 500),\n    file_name: data.file_name,\n    content: data.content,\n    content_hash: contentHash,\n    content_length: data.content.length,\n    word_count: data.content.trim().split(/\\s+/).length,\n    \n    // DB Fields\n    processing_timestamp: processingTime, // Insert Date\n    source_modified_time: sourceTime,     // Document Date\n    \n    metadata: {\n      team_id: teamId,\n      user_id: data.user_id,\n      batch_id: batchId,\n      folder_type: data.folder_type,\n      file_name: data.file_name,\n      // CRITICAL: Put the source time in metadata explicitly\n      document_date: sourceTime, \n      source_modified_time: sourceTime,\n      processing_timestamp: processingTime\n    }\n  };\n  \n  results.push(document);\n}\n\nreturn results.map(item => ({ json: item }));"
+      },
+      "id": "dba52c31-8aec-4be0-8ad5-ef88e5706e79",
+      "name": "Prepare Documents",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        976
+      ]
+    },
+    {
+      "parameters": {
+        "tableId": "documents",
+        "dataToSend": "autoMapInputData"
+      },
+      "id": "7ba11dcd-18c0-4dc5-a150-98e602c4802b",
+      "name": "Store Documents (UPSERT)",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        2032,
+        928
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "6SAgSR5kLIGxGnI7",
+          "name": "Supabase RocketHub"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const chunks = [];\nconst chunkSize = 1000;\nconst overlap = 200;\n\nconsole.log('=== CHUNK CONTENT NODE ===');\nconst inputItems = $input.all();\n\nif (inputItems.length === 0) return [];\n\nfor (const item of inputItems) {\n  const doc = item.json;\n  if (!doc || !doc.content || typeof doc.content !== 'string' || doc.content.length < 100) continue;\n  \n  const content = doc.content;\n  const sentences = content.split(/[.!?]+/).filter(s => s.trim().length > 0);\n  \n  let currentChunk = '';\n  let chunkIndex = 0;\n  \n  // Helper to push chunk\n  const addChunk = (text, index) => {\n    chunks.push({\n      content: text,\n      chunk_index: index,\n      source_id: doc.source_id,\n      source_type: doc.source_type || 'google_drive',\n      title: (doc.title || 'Untitled Document').substring(0, 500),\n      batch_id: doc.batch_id,\n      team_id: doc.team_id,\n      user_id: doc.user_id,\n      folder_type: doc.folder_type,\n      \n      // CRITICAL: Pass the source time through to the chunk\n      source_modified_time: doc.source_modified_time, \n      processing_timestamp: doc.processing_timestamp, // Pass insert time separately\n      \n      metadata: doc.metadata || {}\n    });\n  };\n\n  for (const sentence of sentences) {\n    const trimmed = sentence.trim();\n    if (!trimmed) continue;\n    \n    if (currentChunk.length + trimmed.length > chunkSize && currentChunk.length > 0) {\n      addChunk(currentChunk.trim(), chunkIndex);\n      \n      const words = currentChunk.split(' ');\n      const overlapWords = words.slice(-Math.floor(overlap / 5));\n      currentChunk = overlapWords.join(' ') + ' ' + trimmed;\n      chunkIndex++;\n    } else {\n      currentChunk += (currentChunk ? '. ' : '') + trimmed;\n    }\n  }\n  \n  if (currentChunk.trim().length > 0) {\n    addChunk(currentChunk.trim(), chunkIndex);\n  }\n}\n\nreturn chunks.map(chunk => ({ json: chunk }));"
+      },
+      "id": "3357777f-af04-46c9-847b-3599249ecd1f",
+      "name": "Chunk Content",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        272,
+        1120
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/embeddings",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "input",
+              "value": "={{ $json.content }}"
+            },
+            {
+              "name": "model",
+              "value": "text-embedding-3-small"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "252763c6-2b08-4a19-aa5d-76009b7c9c30",
+      "name": "Generate OpenAI Embeddings",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1088,
+        1120
+      ],
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 2000,
+      "credentials": {
+        "openAiApi": {
+          "id": "rAHjtwJ6H3mdRoPS",
+          "name": "OpenAi account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const vectorChunks = [];\n\n// 1. Get the Embeddings (Current Input)\nconst embeddingItems = $input.all();\n\n// 2. Get the Original Chunk Data (From the node BEFORE OpenAI)\n// We access the output of \"Expand Batch for Processing\" to get the content & dates\nconst originalItems = $(\"Extract Chunks from Batch\").all();\n\nconsole.log('=== PREPARE VECTOR CHUNKS (MERGED DATA) ===');\nconsole.log(`Embeddings received: ${embeddingItems.length}`);\nconsole.log(`Original chunks found: ${originalItems.length}`);\n\nif (embeddingItems.length === 0) return [];\n\n// Loop through items (assuming 1-to-1 mapping between input and output)\nfor (let i = 0; i < embeddingItems.length; i++) {\n  \n  // Get the Embedding response\n  const embeddingJson = embeddingItems[i].json;\n  \n  // Get the Original Data (Content, Dates, IDs)\n  // We use the same index 'i' because n8n processes these in order\n  const originalItem = originalItems[i]?.json;\n\n  // VALIDATION\n  if (!originalItem) {\n    console.log(`⚠️ Error: No original item found for index ${i}`);\n    continue;\n  }\n\n  // Get Content from Original, Embedding from Input\n  const content = originalItem.content;\n  const embeddingArray = embeddingJson.data?.[0]?.embedding;\n\n  if (!content || !embeddingArray) {\n    console.log(`⚠️ Skipping item ${i}: Missing content or embedding`);\n    // Debug logging\n    if (!content) console.log(`   - Content missing`);\n    if (!embeddingArray) console.log(`   - Embedding missing (Check OpenAI Quota/Key)`);\n    continue;\n  }\n\n  // 1. Extract Dates (From Original Item)\n  // PRIORITY: source_modified_time (passed from chunker) > metadata > NOW\n  let documentDate = originalItem.source_modified_time || \n                     originalItem.metadata?.document_date || \n                     originalItem.metadata?.modified_time || \n                     new Date().toISOString();\n\n  // Ensure format is ISO\n  try {\n     documentDate = new Date(documentDate).toISOString();\n  } catch (e) {\n     documentDate = new Date().toISOString();\n  }\n                     \n  // Insert Time (From Original Item)\n  const processingTimestamp = originalItem.processing_timestamp || new Date().toISOString();\n  \n  const vectorString = `[${embeddingArray.join(',')}]`;\n  \n  // 2. Prepare Metadata for DB\n  const metadataForDB = {\n    document_name: (originalItem.title || '').substring(0, 500),\n    chunk_index: originalItem.chunk_index || 0,\n    document_type: originalItem.folder_type === 'meetings' ? 'Meetings' : 'Strategy',\n    source_id: originalItem.source_id,\n    \n    // DATES IN METADATA\n    document_date: documentDate, // <--- File Date\n    processing_timestamp: processingTimestamp, // <--- Insert Date\n    \n    batch_id: originalItem.batch_id,\n    team_id: originalItem.team_id,\n    ...originalItem.metadata // Spread original metadata\n  };\n  \n  // Explicitly ensure date is correct in metadata\n  metadataForDB.document_date = documentDate;\n\n  vectorChunks.push({\n    content: content,\n    title: (originalItem.title || '').substring(0, 500),\n    \n    // SQL Column: document_date (Set to File Date)\n    document_date: documentDate, \n    \n    batch_id: originalItem.batch_id,\n    team_id: originalItem.team_id,\n    source_id: originalItem.source_id,\n    folder_type: originalItem.folder_type,\n    \n    // Metadata JSONB\n    metadata: JSON.stringify(metadataForDB),\n    \n    embedding: vectorString\n  });\n  \n  console.log(`✓ Prepared Chunk ${i} for \"${metadataForDB.document_name}\"`);\n}\n\nreturn vectorChunks.map(chunk => ({ json: chunk }));"
+      },
+      "id": "3157fb09-6462-4e4a-9a84-c974e0935992",
+      "name": "Prepare Vector Chunks",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1232,
+        1088
+      ],
+      "retryOnFail": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO document_chunks_meetings (\n  content, title, document_date, batch_id, team_id, source_id, metadata, embedding\n) \nVALUES (\n  $1, $2, $3::timestamp, $4::uuid, $5::uuid, $6, $7::jsonb, $8::vector\n) \nON CONFLICT ON CONSTRAINT document_chunks_pkey \nDO UPDATE SET \n  content = EXCLUDED.content, \n  title = EXCLUDED.title,\n  document_date = EXCLUDED.document_date,\n  batch_id = EXCLUDED.batch_id,\n  team_id = EXCLUDED.team_id,\n  source_id = EXCLUDED.source_id,\n  metadata = EXCLUDED.metadata, \n  embedding = EXCLUDED.embedding, \n  updated_at = NOW() \nRETURNING id",
+        "options": {
+          "queryReplacement": "={{ $json.content }}, {{ $json.title }}, {{ $json.document_date }}, {{ $json.batch_id }}, {{ $json.team_id }}, {{ $json.source_id }}, {{ $json.metadata }}, {{ $json.embedding }}"
+        }
+      },
+      "id": "e1df0ceb-dc71-457a-bde6-4fffb9aab708",
+      "name": "Store Vector Chunks - Meetings",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        1584,
+        992
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "kEtmOjsypxatQPLu",
+          "name": "Postgres RocketHub"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO document_chunks_strategy (\n  content, \n  title, \n  document_date, \n  batch_id, \n  team_id, \n  source_id,\n  metadata, \n  embedding\n) \nVALUES (\n  $1, $2, $3::timestamp, $4::uuid, $5::uuid, $6, $7::jsonb, $8::vector\n) \nON CONFLICT ON CONSTRAINT document_chunks_strategy_title_content_hash_key \nDO UPDATE SET \n  content = EXCLUDED.content, \n  title = EXCLUDED.title,\n  document_date = EXCLUDED.document_date,\n  batch_id = EXCLUDED.batch_id,\n  team_id = EXCLUDED.team_id,\n  source_id = EXCLUDED.source_id,\n  metadata = EXCLUDED.metadata, \n  embedding = EXCLUDED.embedding, \n  updated_at = NOW() \nRETURNING id",
+        "options": {
+          "queryReplacement": "={{ $json.content }}, {{ $json.title }}, {{ $json.document_date }}, {{ $json.batch_id }}, {{ $json.team_id }}, {{ $json.source_id }}, {{ $json.metadata }}, {{ $json.embedding }}"
+        }
+      },
+      "id": "109fd194-8541-4b6c-ac15-d0a45653d425",
+      "name": "Store Vector Chunks - Strategy",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        1584,
+        1136
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "kEtmOjsypxatQPLu",
+          "name": "Postgres RocketHub"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Enhanced metrics to account for batch processing\nconsole.log('=== ALL CHUNK BATCHES COMPLETE ===');\n\n// Get total counts across all batches\nconst loopNode = $('Loop Over Chunk Batches');\nconst totalBatches = loopNode.first().json.total_batches;\n\nconsole.log(`Processed ${totalBatches} batches of chunks`);\n\n// Get final storage counts\nlet totalMeetingsStored = 0;\nlet totalStrategyStored = 0;\n\ntry {\n  const allMeetings = $('Store Vector Chunks - Meetings').all();\n  totalMeetingsStored = allMeetings.length;\n} catch (error) {\n  console.log('No meetings vectors stored');\n}\n\ntry {\n  const allStrategy = $('Store Vector Chunks - Strategy').all();\n  totalStrategyStored = allStrategy.length;\n} catch (error) {\n  console.log('No strategy vectors stored');\n}\n\nconst totalVectorsStored = totalMeetingsStored + totalStrategyStored;\n\nconst batchSummary = {\n  batch_completed: true,\n  total_batches_processed: totalBatches,\n  total_vectors_stored: totalVectorsStored,\n  meetings_chunks: totalMeetingsStored,\n  strategy_chunks: totalStrategyStored,\n  timestamp: new Date().toISOString()\n};\n\nconsole.log(`Total vectors stored: ${totalVectorsStored}`);\nconsole.log(`  - Meetings: ${totalMeetingsStored}`);\nconsole.log(`  - Strategy: ${totalStrategyStored}`);\n\n// ⚠️ IMPORTANT: No longer references document storage\n// That happens in a separate path after this node\n\nreturn [{ json: batchSummary }];"
+      },
+      "id": "36ecd392-a54c-4992-b07e-8a74c1cd254a",
+      "name": "Batch Completion Metrics",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        976,
+        992
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Final execution summary - with safe node access\nconst teamConnection = $('Loop Over Each Team').item.json;\n\nlet batchesProcessed = 0;\ntry {\n  const allBatches = $('Loop Over Batches').all();\n  batchesProcessed = allBatches ? allBatches.length : 0;\n} catch (error) {\n  console.log('No batches were processed (no new files)');\n}\n\nconst executionSummary = {\n  workflow_name: 'Astra Multi-Team Data Sync v3 (Pre-Filtered)',\n  workflow_version: 'v3',\n  execution_id: $execution.id,\n  completion_time: new Date().toISOString(),\n  status: 'completed_successfully',\n  \n  team_info: {\n    team_id: teamConnection.team_id,\n    batches_processed: batchesProcessed,\n    had_new_files: batchesProcessed > 0\n  },\n  \n  optimization_features: [\n    'Pre-filtering before download',\n    'Improved null handling for source_modified_time',\n    'Explicit three-case logic (new/updated/skip)',\n    'Early exit when no files to process',\n    'Better logging and diagnostics',\n    'Safe node access with try-catch'\n  ]\n};\n\nconsole.log('Team processing completed!');\nconsole.log(JSON.stringify(executionSummary, null, 2));\n\nreturn [{ json: executionSummary }];"
+      },
+      "id": "daa98626-43f4-4116-a1cc-0d2ef00c9905",
+      "name": "Team Completion Metrics",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1728,
+        544
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\n// Safe context retrieval inside the branch\nconst teamData = $('Loop Over Each Team').item.json; \n\nif (!response || !response.files) {\n  console.log('⚠️ No meetings files found');\n  // Even if empty, return context so downstream nodes know who this is\n  return [{\n    json: {\n      files: [],\n      folder_type: 'meetings',\n      team_id: teamData.team_id,\n      user_id: teamData.user_id,\n      access_token: teamData.access_token,\n      parent_folder_id: teamData.meetings_folder_id\n    }\n  }];\n}\n\nconsole.log(`Tagging ${response.files.length} files as 'meetings' for team ${teamData.team_id}`);\n\nreturn [{\n  json: {\n    ...response,\n    folder_type: 'meetings',\n    source_folder: 'meetings',\n    // Pass context forward\n    team_id: teamData.team_id,\n    user_id: teamData.user_id,\n    access_token: teamData.access_token,\n    parent_folder_id: teamData.meetings_folder_id\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1264,
+        192
+      ],
+      "id": "c5bb9c40-ea57-4f5d-8f9f-eec1b7e2c09c",
+      "name": "Tag Meeting Files"
+    },
+    {
+      "parameters": {
+        "jsCode": "const allItems = $input.all();\n\nconsole.log('=== FILTER STRATEGY ONLY ===');\nconsole.log(`Input items: ${allItems.length}`);\n\nconst strategyItems = allItems.filter(item => {\n  const metadata = item.json?.metadata;\n  \n  // Parse metadata if it's a string\n  let meta = metadata;\n  if (typeof metadata === 'string') {\n    try {\n      meta = JSON.parse(metadata);\n    } catch (e) {\n      console.log('Error parsing metadata:', e.message);\n      return false;\n    }\n  }\n  \n  const docType = meta?.document_type;\n  const folderType = meta?.folder_type || item.json?.folder_type;\n  \n  console.log(`Item: \"${item.json?.title?.substring(0, 30)}\" - type: ${docType}, folder: ${folderType}`);\n  \n  // Match on either document_type or folder_type\n  return docType === 'Strategy' || folderType === 'strategy';\n});\n\nconsole.log(`Found ${strategyItems.length} strategy items`);\n\nif (strategyItems.length === 0) {\n  return [];\n}\n\nreturn strategyItems;\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1392,
+        1136
+      ],
+      "id": "1aa4239e-b161-42cc-8dab-98f0e6646709",
+      "name": "Filter Strategy Only",
+      "alwaysOutputData": false
+    },
+    {
+      "parameters": {
+        "jsCode": "const allItems = $input.all();\n\nconsole.log('=== FILTER MEETINGS ONLY ===');\nconsole.log(`Input items: ${allItems.length}`);\n\nconst meetingsItems = allItems.filter(item => {\n  const metadata = item.json?.metadata;\n  \n  // Parse metadata if it's a string\n  let meta = metadata;\n  if (typeof metadata === 'string') {\n    try {\n      meta = JSON.parse(metadata);\n    } catch (e) {\n      console.log('Error parsing metadata:', e.message);\n      return false;\n    }\n  }\n  \n  const docType = meta?.document_type;\n  const folderType = meta?.folder_type || item.json?.folder_type;\n  \n  console.log(`Item: \"${item.json?.title?.substring(0, 30)}\" - type: ${docType}, folder: ${folderType}`);\n  \n  // Match on either document_type or folder_type\n  return docType === 'Meetings' || folderType === 'meetings';\n});\n\nconsole.log(`Found ${meetingsItems.length} meetings items`);\n\nif (meetingsItems.length === 0) {\n  return [];\n}\n\nreturn meetingsItems;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1392,
+        992
+      ],
+      "id": "b76a90de-1765-4b01-a633-7f488c239158",
+      "name": "Filter Meetings Only",
+      "alwaysOutputData": false
+    },
+    {
+      "parameters": {
+        "jsCode": "// Simple pass-through - just collects from whichever storage node executed\nreturn $input.all();"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1760,
+        1088
+      ],
+      "id": "24afc0e1-3838-45a3-abbc-ffbb71f74871",
+      "name": "Collect Storage Results"
+    },
+    {
+      "parameters": {
+        "url": "https://www.googleapis.com/drive/v3/files",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "q",
+              "value": "='{{ $('Loop Over Each Team').item.json.financial_folder_id }}' in parents \nand mimeType='application/vnd.google-apps.spreadsheet' \nand trashed=false"
+            },
+            {
+              "name": "fields",
+              "value": "files(id,name,mimeType,modifiedTime,webViewLink,size)"
+            },
+            {
+              "name": "pageSize",
+              "value": "500"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('Loop Over Each Team').item.json.access_token }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "aee183e3-9493-4eba-bbe6-323cb387af5d",
+      "name": "Get Financial Folder Files",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1072,
+        48
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\nconst teamData = $('Loop Over Each Team').item.json;\n\nif (!response || !response.files) {\n  console.log('⚠️ No financial files found');\n  return [{\n    json: {\n      files: [],\n      folder_type: 'financial',\n      team_id: teamData.team_id,\n      user_id: teamData.user_id,\n      access_token: teamData.access_token,\n      parent_folder_id: teamData.financial_folder_id\n    }\n  }];\n}\n\nconsole.log(`Tagging ${response.files.length} files as 'financial' for team ${teamData.team_id}`);\n\nreturn [{\n  json: {\n    ...response,\n    folder_type: 'financial',\n    source_folder: 'financial',\n    team_id: teamData.team_id,\n    user_id: teamData.user_id,\n    access_token: teamData.access_token,\n    parent_folder_id: teamData.financial_folder_id\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1264,
+        48
+      ],
+      "id": "080342e0-8bdc-45f5-ac49-d6c210267ad1",
+      "name": "Tag Financial Files"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Split files into financial and non-financial streams\nconst allFiles = $input.all();\n\nconsole.log('=== SPLITTING FILES BY TYPE ===');\nconsole.log(`Total files to process: ${allFiles.length}`);\n\nconst financialFiles = [];\nconst nonFinancialFiles = [];\n\nfor (const item of allFiles) {\n  const file = item.json;\n  \n  if (file.folder_type === 'financial') {\n    financialFiles.push(file);\n    console.log(`📊 Financial: ${file.file_name}`);\n  } else {\n    nonFinancialFiles.push(file);\n    console.log(`📄 Non-Financial (${file.folder_type}): ${file.file_name}`);\n  }\n}\n\nconsole.log(`\\n📊 Financial files: ${financialFiles.length}`);\nconsole.log(`📄 Non-financial files: ${nonFinancialFiles.length}`);\n\n// Return both types with a type flag\nconst results = [];\n\nif (financialFiles.length > 0) {\n  results.push({\n    json: {\n      file_type: 'financial',\n      files: financialFiles,\n      count: financialFiles.length\n    }\n  });\n}\n\nif (nonFinancialFiles.length > 0) {\n  results.push({\n    json: {\n      file_type: 'non_financial',\n      files: nonFinancialFiles,\n      count: nonFinancialFiles.length\n    }\n  });\n}\n\nconsole.log(`\\n✅ Returning ${results.length} file type group(s)`);\nreturn results;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        128,
+        560
+      ],
+      "id": "3e30abd8-13cd-4fde-9a75-f44df826e6c6",
+      "name": "Split Financial vs Non-Financial"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "ae1a37aa-52f1-4fa3-bc17-b4c257757796",
+              "leftValue": "={{ $json.file_type }}",
+              "rightValue": "financial",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        304,
+        560
+      ],
+      "id": "90a2ea18-6922-47a8-835d-e1b4529b5abf",
+      "name": "Route by File Type"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Function signature for n8n Code node receives a list of item arrays\n// The input data is assumed to be passed as an array of items (e.g., from a preceding node).\nconst inputItems = $input.all();\nconst sheetsItems = [];\n\nconsole.log('=== EXTRACTING SHEETS IDs ===');\n\n// Assuming the first item contains the overall structure: { json: { files: [...] } }\n// Adjust this line if your preceding node returns the files array directly without the 'json' wrapper.\nconst fileGroup = inputItems[0]?.json; \n\nif (!fileGroup || !fileGroup.files || !Array.isArray(fileGroup.files)) {\n  console.log('⚠️ Input data structure is incorrect or missing \"files\" array.');\n  return []; // Return empty array if input structure is invalid\n}\n\nconsole.log(`Processing ${fileGroup.files.length} financial files`);\n\nfor (const file of fileGroup.files) {\n  console.log('\\n--- Processing File ---');\n  console.log('File name:', file.file_name);\n  console.log('File ID:', file.file_id);\n  console.log('MIME type:', file.mime_type);\n  \n  let sheetsId = null;\n  \n  // Extract Google Sheets ID\n  if (file.mime_type === 'application/vnd.google-apps.spreadsheet') {\n    sheetsId = file.file_id;\n    console.log('✅ Google Sheets file detected via MIME type');\n  }\n  \n  if (sheetsId) {\n    console.log(`📊 Sheets ID: ${sheetsId}`);\n    console.log(`📄 Filename to preserve: ${file.file_name}`);\n    \n    const preservedItem = {\n      sheetsId: sheetsId,\n      fileName: file.file_name,\n      name: file.file_name,\n      id: file.file_id,\n      mimeType: file.mime_type,\n      modifiedTime: file.modified_time,\n      webViewLink: file.web_view_link,\n      \n      // Preserve team context\n      team_id: file.team_id,\n      user_id: file.user_id,\n      access_token: file.access_token,\n      folder_type: file.folder_type,\n      \n      originalDriveData: {\n        id: file.file_id,\n        name: file.file_name,\n        mimeType: file.mime_type,\n        modifiedTime: file.modified_time,\n        webViewLink: file.web_view_link,\n        team_id: file.team_id\n      }\n    };\n    \n    // Push the output item wrapped in the n8n format { json: ... }\n    sheetsItems.push({ json: preservedItem });\n    console.log('✅ Added to processing queue with complete metadata');\n  }\n}\n\nconsole.log(`\\n✅ Found ${sheetsItems.length} Google Sheets files`);\nreturn sheetsItems;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        560,
+        560
+      ],
+      "id": "c93a1edb-edf1-4bbd-a739-01dc08d2a8b2",
+      "name": "Extract Sheets IDs"
+    },
+    {
+      "parameters": {
+        "url": "=https://sheets.googleapis.com/v4/spreadsheets/{{ $json.sheetsId }}?fields=sheets.properties",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $json.access_token }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        720,
+        560
+      ],
+      "id": "240cc295-7e5d-43f2-b3d9-a39ad456c943",
+      "name": "Get Sheet Metadata",
+      "retryOnFail": true,
+      "waitBetweenTries": 2000,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// CORRECTED: Expand multi-tab spreadsheets to individual tabs\nconst inputItems = $input.all();\nconst expandedSheets = [];\n\nconsole.log('=== MULTI-TAB SHEET EXPANSION (CORRECTED) ===');\nconsole.log(`Processing ${inputItems.length} spreadsheets`);\n\nfor (let i = 0; i < inputItems.length; i++) {\n  console.log(`\\n--- Processing item ${i + 1}/${inputItems.length} ---`);\n  \n  const currentItem = inputItems[i].json;\n  \n  // Debug: Log the structure we received\n  console.log('Item structure:', Object.keys(currentItem).join(', '));\n  \n  // Extract spreadsheet metadata\n  // The data should come from \"Get Sheet Metadata\" which combines:\n  // 1. Original file data (spreadsheetId, spreadsheetName, etc.)\n  // 2. Sheets API response with 'sheets' array\n  \n  const spreadsheetId = currentItem.spreadsheetId || currentItem.sheetsId || currentItem.id;\n  const spreadsheetName = currentItem.spreadsheetName || currentItem.fileName || currentItem.name || 'Unknown Spreadsheet';\n  const sheets = currentItem.sheets || [];\n  \n  // Extract team context (critical for downstream processing)\n  const teamId = currentItem.team_id;\n  const userId = currentItem.user_id;\n  const accessToken = currentItem.access_token;\n  const folderType = currentItem.folder_type;\n  const webViewLink = currentItem.webViewLink;\n  const originalDriveData = currentItem.originalDriveData || currentItem;\n  \n  console.log(`📊 Spreadsheet: \"${spreadsheetName}\"`);\n  console.log(`🆔 ID: ${spreadsheetId}`);\n  console.log(`📑 Found ${sheets.length} tabs`);\n  console.log(`👥 Team ID: ${teamId}`);\n  console.log(`🔑 Has access token: ${!!accessToken}`);\n  \n  // Validation\n  if (!spreadsheetId) {\n    console.log(`❌ No spreadsheet ID found - skipping`);\n    console.log(`Available fields: ${Object.keys(currentItem).join(', ')}`);\n    continue;\n  }\n  \n  if (!accessToken) {\n    console.log(`⚠️ No access token found - this will cause issues downstream`);\n  }\n  \n  if (!teamId) {\n    console.log(`⚠️ No team_id found - this will cause issues downstream`);\n  }\n  \n  // Handle empty sheets array\n  if (!sheets || sheets.length === 0) {\n    console.log('⚠️ No sheets metadata found - adding default sheet');\n    const defaultSheet = {\n      spreadsheetId: spreadsheetId,\n      spreadsheetName: spreadsheetName,\n      sheetName: 'Sheet1',\n      sheetTitle: 'Sheet1',\n      sheetId: 0,\n      tabIndex: 0,\n      totalTabs: 1,\n      webViewLink: webViewLink,\n      team_id: teamId,\n      user_id: userId,\n      access_token: accessToken,\n      folder_type: folderType,\n      originalDriveData: originalDriveData\n    };\n    \n    expandedSheets.push({ json: defaultSheet });\n    console.log('✓ Added default sheet');\n    continue;\n  }\n  \n  // Process each sheet/tab\n  let processedTabs = 0;\n  let skippedHiddenTabs = 0;\n  \n  sheets.forEach((sheet, tabIndex) => {\n    const sheetProperties = sheet.properties || {};\n    const sheetTitle = sheetProperties.title || `Sheet${tabIndex + 1}`;\n    const sheetId = sheetProperties.sheetId !== undefined ? sheetProperties.sheetId : tabIndex;\n    const isHidden = sheetProperties.hidden || false;\n    \n    console.log(`  📋 Tab ${tabIndex + 1}: \"${sheetTitle}\" (ID: ${sheetId}) ${isHidden ? '[HIDDEN]' : ''}`);\n    \n    if (isHidden) {\n      console.log(`    ⏭️ Skipping hidden sheet`);\n      skippedHiddenTabs++;\n      return;\n    }\n    \n    const sheetItem = {\n      spreadsheetId: spreadsheetId,\n      spreadsheetName: spreadsheetName,\n      sheetName: sheetTitle,\n      sheetTitle: sheetTitle,\n      sheetId: sheetId,\n      tabIndex: tabIndex,\n      totalTabs: sheets.length,\n      webViewLink: webViewLink,\n      team_id: teamId,\n      user_id: userId,\n      access_token: accessToken,\n      folder_type: folderType,\n      originalDriveData: originalDriveData,\n      sheetProperties: {\n        title: sheetTitle,\n        sheetId: sheetId,\n        index: sheetProperties.index !== undefined ? sheetProperties.index : tabIndex,\n        sheetType: sheetProperties.sheetType || 'GRID',\n        gridProperties: sheetProperties.gridProperties || {},\n        hidden: isHidden\n      }\n    };\n    \n    expandedSheets.push({ json: sheetItem });\n    processedTabs++;\n  });\n  \n  console.log(`✅ Processed ${processedTabs} visible tabs`);\n  if (skippedHiddenTabs > 0) {\n    console.log(`⏭️ Skipped ${skippedHiddenTabs} hidden tabs`);\n  }\n}\n\nconsole.log(`\\n=== EXPANSION COMPLETE ===`);\nconsole.log(`📊 Original spreadsheets: ${inputItems.length}`);\nconsole.log(`📑 Expanded to tabs: ${expandedSheets.length}`);\n\nif (expandedSheets.length === 0) {\n  console.log('\\n❌ ERROR: No tabs were expanded!');\n  console.log('This usually means:');\n  console.log('  1. All tabs were hidden, or');\n  console.log('  2. The input data structure is not as expected');\n  console.log('\\nReturning empty array - workflow will stop here.');\n}\n\n// Return the list of n8n items\nreturn expandedSheets;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1072,
+        560
+      ],
+      "id": "4f02cc82-9722-44bd-b2db-5e143f0f447e",
+      "name": "Expand to Individual Tabs"
+    },
+    {
+      "parameters": {
+        "url": "=https://sheets.googleapis.com/v4/spreadsheets/{{ $json.spreadsheetId }}/values/{{ encodeURIComponent($json.sheetName) }}!A1:Z1000?valueRenderOption=UNFORMATTED_VALUE&majorDimension=ROWS",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $json.access_token }}"
+            }
+          ]
+        },
+        "options": {
+          "batching": {
+            "batch": {
+              "batchSize": 5,
+              "batchInterval": 12000
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1264,
+        560
+      ],
+      "id": "8b73b089-fc41-4a3f-b7ce-35d13118c9aa",
+      "name": "Fetch Individual Tab Data",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ENHANCED FINANCIAL CLASSIFICATION (ROBUST NAME MATCHING)\n// Fixes issue where metadata context is lost by matching Sheet Names from API range\n\nconst processedFinancialData = [];\nconsole.log('=== PROCESS SHEET DATA (ROBUST MATCHING) ===');\n\n// 1. Get all inputs (API Responses)\nconst inputItems = $input.all();\nconsole.log(`Input items (API Responses): ${inputItems.length}`);\n\n// 2. Get Metadata from Upstream \"Expand to Individual Tabs\"\nlet metadataItems = [];\ntry {\n  // We retrieve ALL items from the expansion node to build a lookup map\n  metadataItems = $('Expand to Individual Tabs').all();\n  console.log(`Metadata items found: ${metadataItems.length}`);\n} catch (error) {\n  console.error('❌ Could not access \"Expand to Individual Tabs\" data');\n}\n\n// 3. Build Metadata Lookup Map (Key: Sheet Name -> Value: Metadata)\nconst metaMap = new Map();\nconst indexMap = new Map(); // Fallback map\n\nif (metadataItems.length > 0) {\n  metadataItems.forEach((item, index) => {\n    const data = item.json;\n    if (data.sheetName) {\n      // Normalize: remove quotes, trim\n      const cleanName = data.sheetName.replace(/^'|'$/g, '').trim();\n      metaMap.set(cleanName, data);\n      // Also map by original name just in case\n      metaMap.set(data.sheetName, data);\n    }\n    indexMap.set(index, data);\n  });\n  console.log(`Built metadata map with ${metaMap.size} keys`);\n}\n\n// 4. Helper to extract sheet name from range string\nfunction getSheetNameFromRange(rangeStr) {\n  if (!rangeStr) return null;\n  // Range format: \"'Sheet Name'!A1:Z\" or \"SheetName!A1:Z\"\n  const parts = rangeStr.split('!');\n  if (parts.length < 2) return null;\n  \n  // Get the part before '!'\n  let sheetPart = parts[0];\n  \n  // Remove surrounding single quotes if present\n  if (sheetPart.startsWith(\"'\") && sheetPart.endsWith(\"'\")) {\n    sheetPart = sheetPart.substring(1, sheetPart.length - 1);\n  }\n  \n  return sheetPart;\n}\n\n// 5. PROCESS ITEMS\nfor (let i = 0; i < inputItems.length; i++) {\n  const apiResponse = inputItems[i].json;\n  \n  // A. Try to find Metadata\n  let tabMetadata = null;\n  let matchMethod = 'none';\n  \n  // Method 1: Match by Sheet Name (Most Robust)\n  if (apiResponse.range) {\n    const rangeSheetName = getSheetNameFromRange(apiResponse.range);\n    if (rangeSheetName) {\n      tabMetadata = metaMap.get(rangeSheetName);\n      if (tabMetadata) matchMethod = 'name_match';\n    }\n  }\n  \n  // Method 2: Fallback to Index (Only if name match failed)\n  if (!tabMetadata && indexMap.has(i)) {\n    tabMetadata = indexMap.get(i);\n    if (tabMetadata) {\n        console.log(`⚠️ Falling back to index match for item ${i}`);\n        matchMethod = 'index_fallback';\n    }\n  }\n  \n  // Validation\n  if (!tabMetadata) {\n    console.log(`❌ Skipping item ${i}: Could not find metadata. Range: \"${apiResponse.range || 'unknown'}\"`);\n    continue;\n  }\n  \n  // Check for empty data\n  if (!apiResponse.values || !Array.isArray(apiResponse.values) || apiResponse.values.length === 0) {\n    console.log(`⚠️ Skipping empty tab: ${tabMetadata.sheetName}`);\n    continue;\n  }\n  \n  console.log(`✓ Matched \"${tabMetadata.sheetName}\" (Method: ${matchMethod})`);\n  \n  // B. Process the Content (CSV Generation)\n  const rows = apiResponse.values;\n  const headers = rows[0] || [];\n  // Filter out completely empty rows\n  const dataRows = rows.slice(1).filter(row => row.some(cell => cell && String(cell).trim() !== ''));\n  \n  if (dataRows.length === 0) {\n    console.log(`  Skipping: Header only or empty content`);\n    continue;\n  }\n  \n  // Create CSV Content\n  const csvContent = [\n    // Headers\n    (Array.isArray(rows[0]) ? rows[0] : [rows[0]])\n    .map(h => `\"${String(h || '').replace(/\"/g, '\"\"')}\"`)\n    .join(','),\n    // Rows\n    ...rows.slice(1).map(row => {\n      const rowArray = Array.isArray(row) ? row : [row];\n      return rowArray\n        .map(cell => `\"${String(cell || '').replace(/\"/g, '\"\"')}\"`)\n        .join(',');\n    })\n  ].join('\\n');\n\n  // C. Classification Logic\n  const classification = classifyFinancialDocument(\n    tabMetadata.spreadsheetName, \n    tabMetadata.sheetName, \n    csvContent, \n    tabMetadata.tabIndex, \n    tabMetadata.totalTabs\n  );\n  \n  // D. Construct Result\n  const documentName = tabMetadata.totalTabs > 1 ?\n      `${tabMetadata.spreadsheetName} - ${tabMetadata.sheetName}` :\n      tabMetadata.spreadsheetName;\n\n  // Extract Date (Prefer original file date)\n  const sourceTime = tabMetadata.originalDriveData?.modifiedTime || new Date().toISOString();\n\n  processedFinancialData.push({\n    source_type: 'google_sheets_api_multi_tab',\n    source_id: `${tabMetadata.spreadsheetId}_${tabMetadata.tabIndex}`, // Unique ID per tab\n    document_type: classification.document_type,\n    title: documentName,\n    content: csvContent.substring(0, 150000), // Limit size safe for Postgres\n    \n    // CRITICAL: Pass original file date\n    source_modified_time: sourceTime,\n    \n    // Pass through Team/User Context\n    team_id: tabMetadata.team_id,\n    user_id: tabMetadata.user_id,\n    \n    // Store Tab Info\n    tab_metadata: {\n      spreadsheet_id: tabMetadata.spreadsheetId,\n      spreadsheet_name: tabMetadata.spreadsheetName,\n      sheet_name: tabMetadata.sheetName,\n      sheet_id: tabMetadata.sheetId,\n      tab_index: tabMetadata.tabIndex,\n      total_tabs: tabMetadata.totalTabs,\n      is_multi_tab_document: tabMetadata.totalTabs > 1,\n      webViewLink: tabMetadata.webViewLink\n    },\n    \n    csv_structure: {\n      headers: headers,\n      row_count: dataRows.length,\n      column_count: headers.length\n    },\n    \n    extracted_metadata: {\n      financial_period: classification.period_info.financial_period,\n      period_start_date: classification.period_info.period_start_date,\n      period_end_date: classification.period_info.period_end_date,\n      data_category: classification.data_category,\n      document_classification: classification.document_type,\n      keywords: classification.keywords,\n      tags: classification.tags,\n      processing_timestamp: new Date().toISOString(),\n      // Ensure modified time is also in metadata\n      modified_time: sourceTime\n    },\n    \n    classification_confidence: classification.confidence\n  });\n}\n\nconsole.log(`\\n=== PROCESSING COMPLETE ===`);\nconsole.log(`Generated ${processedFinancialData.length} documents`);\n\nif (processedFinancialData.length === 0) {\n    console.log(\"❌ ERROR: No documents were generated. Check matching logic.\");\n    return [];\n}\n\nreturn processedFinancialData.map(item => ({ json: item }));\n\n\n// ================= HELPER FUNCTIONS =================\n\nfunction analyzeDocumentTitle(spreadsheetName, sheetName) {\n  const fullTitle = `${spreadsheetName} ${sheetName}`.toLowerCase();\n  const classification = {\n    document_type: 'other',\n    confidence: 0,\n    tags: [],\n    entity: null\n  };\n  \n  // Entity detection\n  const entityMatch = fullTitle.match(/\\b([A-Z]{2,4})\\b/i) || fullTitle.match(/\\b(llc|inc|corp)\\b/i);\n  if (entityMatch) classification.entity = entityMatch[1].toUpperCase();\n\n  // Equity\n  if (fullTitle.includes('equity') || fullTitle.includes('cap table') || fullTitle.includes('ownership')) {\n    return { ...classification, document_type: 'equity', confidence: 0.9, tags: ['equity', 'cap-table'] };\n  }\n  // P&L\n  if ((fullTitle.includes('profit') && fullTitle.includes('loss')) || fullTitle.includes('p&l') || fullTitle.includes('income')) {\n    return { ...classification, document_type: 'income_statement', confidence: 0.9, tags: ['p&l', 'income-statement'] };\n  }\n  // Balance Sheet\n  if (fullTitle.includes('balance') && fullTitle.includes('sheet')) {\n    return { ...classification, document_type: 'balance_sheet', confidence: 0.9, tags: ['balance-sheet'] };\n  }\n  // Transactions\n  if (fullTitle.includes('transaction') || fullTitle.includes('ledger') || fullTitle.includes('register') || fullTitle.includes('journal')) {\n    return { ...classification, document_type: 'transactions', confidence: 0.8, tags: ['transactions'] };\n  }\n  \n  return classification;\n}\n\nfunction classifyFinancialDocument(spreadsheetName, sheetName, content, tabIndex, totalTabs) {\n  const titleAnalysis = analyzeDocumentTitle(spreadsheetName, sheetName);\n  const contentLower = content.toLowerCase().substring(0, 2000); \n  \n  let docType = titleAnalysis.document_type;\n  let confidence = titleAnalysis.confidence;\n  let category = 'general_financial';\n  const tags = new Set(titleAnalysis.tags || []);\n  \n  // Content-based Refinement\n  if (docType === 'other') {\n    if (contentLower.includes('asset') && contentLower.includes('liability') && contentLower.includes('equity')) {\n      docType = 'balance_sheet';\n      category = 'balance_sheet_items';\n      confidence = 0.8;\n    } else if ((contentLower.includes('revenue') || contentLower.includes('sales')) && contentLower.includes('expense')) {\n      docType = 'income_statement';\n      category = 'income_statement_items';\n      confidence = 0.8;\n    } else if (contentLower.includes('date') && contentLower.includes('description') && (contentLower.includes('amount') || contentLower.includes('debit'))) {\n      docType = 'transactions';\n      category = 'transactions';\n      confidence = 0.7;\n    }\n  }\n  \n  // Period Extraction\n  let period = null;\n  let startDate = null;\n  let endDate = null;\n  \n  // Simple month regex\n  const months = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];\n  for (let i=0; i<months.length; i++) {\n    if (sheetName.toLowerCase().includes(months[i])) {\n       const yearMatch = sheetName.match(/20\\d\\d/) || spreadsheetName.match(/20\\d\\d/);\n       const year = yearMatch ? yearMatch[0] : new Date().getFullYear();\n       const monthNum = (i+1).toString().padStart(2, '0');\n       period = `${year}-${monthNum}`;\n       startDate = `${period}-01`;\n       // Simple end date approximation\n       endDate = `${period}-28`; \n       break;\n    }\n  }\n  \n  if (period) tags.add(`period-${period}`);\n  tags.add(docType);\n  if (totalTabs > 1) tags.add('multi-tab');\n\n  return {\n    document_type: docType,\n    confidence: confidence,\n    data_category: category,\n    keywords: Array.from(tags),\n    tags: Array.from(tags),\n    period_info: {\n      financial_period: period,\n      period_start_date: startDate,\n      period_end_date: endDate,\n      period_type: period ? 'monthly' : null\n    },\n    confidence: {\n        level: confidence > 0.8 ? 'high' : 'medium',\n        score: confidence\n    }\n  };\n}"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1584,
+        560
+      ],
+      "id": "4df313a8-f8d9-49e3-aec1-19e5ccf30c72",
+      "name": "Process Sheet Data1"
+    },
+    {
+      "parameters": {
+        "jsCode": "// FIXED: Get team context from current item (passed from Combine & Filter)\nconst crypto = require('crypto');\nconst financialDocuments = [];\n\nfunction generateUUID() {\n  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {\n    const r = Math.random() * 16 | 0;\n    const v = c == 'x' ? r : (r & 0x3 | 0x8);\n    return v.toString(16);\n  });\n}\n\nconst batchId = generateUUID();\n\n// ✅ FIX: Get team_id and user_id from the current item (passed from Combine & Filter)\nlet teamId = null;\nlet userId = null;\ntry {\n  // The first item should have team_id and user_id from Combine & Filter\n  const firstItem = $input.first().json;\n  teamId = firstItem.team_id;\n  userId = firstItem.user_id;\n  \n  if (!teamId || !userId) {\n    throw new Error('team_id or user_id missing from input item');\n  }\n  \n  console.log(`✅ Processing for team: ${teamId}, user: ${userId}`);\n  console.log(`Generated batch_id: ${batchId}`);\n} catch (error) {\n  console.error('❌ ERROR: Could not get team_id from input item');\n  console.error('Error details:', error.message);\n  throw new Error('team_id not found in context');\n}\n\nconsole.log('=== PREPARING FINANCIAL DOCUMENTS (MULTI-TEAM) ===');\nconsole.log(`Team ID: ${teamId}`);\nconsole.log(`User ID: ${userId}`);\nconsole.log(`Batch ID: ${batchId}`);\nconsole.log(`Input items: ${$input.all().length}`);\n\nfor (const item of $input.all()) {\n  const data = item.json;\n  \n  if (!data.content || data.content.length < 10) {\n    console.log(`⚠️ Skipping ${data.title} - insufficient content`);\n    continue;\n  }\n  \n  const contentHash = crypto\n    .createHash('md5')\n    .update(data.content.substring(0, 500))\n    .digest('hex');\n  \n  const wordCount = data.content.trim().split(/\\s+/).length;\n  const contentLength = data.content.length;\n  const fileName = data.title || data.source_id || 'Unknown Financial Document';\n  \n  const sourceModifiedTime = data.source_modified_time || \n                              data.metadata?.modified_time || \n                              data.extracted_metadata?.modified_time || \n                              data.modified_time || \n                              new Date().toISOString();\n  \n  const document = {\n    team_id: teamId,\n    user_id: userId,\n    batch_id: batchId,\n    source_type: 'google_drive',\n    source_id: data.source_id,\n    document_type: 'financial',\n    folder_type: 'financial',\n    title: data.title.substring(0, 500),\n    file_name: fileName,\n    content: data.content,\n    content_hash: contentHash,\n    content_length: contentLength,\n    word_count: wordCount,\n    processing_timestamp: new Date().toISOString(),\n    source_modified_time: sourceModifiedTime,\n    mime_type: 'application/vnd.google-apps.spreadsheet',\n    workflow_id: $workflow.id?.substring(0, 100),\n    execution_id: $execution.id?.toString().substring(0, 100),\n    priority: 'high',\n    \n    metadata: {\n      ...data.metadata,\n      team_id: teamId,\n      user_id: userId,\n      batch_id: batchId,\n      folder_type: 'financial',\n      specific_document_type: data.document_type,\n      document_classification: data.document_type,\n      word_count: wordCount,\n      content_length: contentLength,\n      financial_metrics: data.financial_metrics || {},\n      financial_metrics_count: Object.keys(data.financial_metrics || {}).length,\n      processing_type: 'comprehensive_financial_spreadsheet_multi_team',\n      classification_confidence: data.classification_confidence,\n      csv_structure: data.csv_structure,\n      tab_metadata: data.tab_metadata,\n      extracted_metadata: data.extracted_metadata,\n      file_name: fileName,\n      modified_time: sourceModifiedTime,\n      mime_type: 'application/vnd.google-apps.spreadsheet'\n    }\n  };\n  \n  financialDocuments.push(document);\n  console.log(`✅ Prepared: ${document.title} for team ${teamId}`);\n}\n\nconsole.log(`\\n=== PREPARATION COMPLETE ===`);\nconsole.log(`📊 Prepared ${financialDocuments.length} financial documents`);\nconsole.log(`👥 Team: ${teamId}`);\n\nif (financialDocuments.length === 0) {\n  console.log('⚠️ WARNING: No financial documents prepared!');\n  return [];\n}\n\nreturn financialDocuments.map(item => ({ json: item }));\n"
+      },
+      "id": "489b4aad-035f-4c2d-8175-7c9e177073e4",
+      "name": "Prepare Financial Documents",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        592,
+        752
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "04a1790d-7435-45ef-b93d-707d0f54dd47",
+              "leftValue": "={{ $json.financial_folder_id }}",
+              "rightValue": "notEmpty",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        912,
+        48
+      ],
+      "id": "e90cd44c-c5d0-4c4e-bfb4-79f213e0c7b9",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "04a1790d-7435-45ef-b93d-707d0f54dd47",
+              "leftValue": "={{ $json.meetings_folder_id }}",
+              "rightValue": "notEmpty",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        912,
+        208
+      ],
+      "id": "2de007dc-04aa-4625-bfd9-e56f0cd3159d",
+      "name": "If2"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "04a1790d-7435-45ef-b93d-707d0f54dd47",
+              "leftValue": "={{ $json.strategy_folder_id }}",
+              "rightValue": "notEmpty",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        912,
+        384
+      ],
+      "id": "94e55c0f-8f85-4ad8-92e0-306bba91dd56",
+      "name": "If3"
+    },
+    {
+      "parameters": {
+        "jsCode": "// MERGE SHEETS METADATA WITH ORIGINAL DATA\n// This node combines the Google Sheets API response with the original file data\n\nconst metadataItems = $input.all();  // From \"Get Sheet Metadata\" \nconst originalItems = $('Extract Sheets IDs').all();  // From upstream\n\nconsole.log('=== MERGING SHEETS METADATA ===');\nconsole.log(`API responses: ${metadataItems.length}`);\nconsole.log(`Original items: ${originalItems.length}`);\n\nconst mergedItems = [];\n\n// Match each metadata response with its original item\nfor (let i = 0; i < metadataItems.length; i++) {\n  const metadata = metadataItems[i].json;\n  const original = originalItems[i]?.json;\n  \n  if (!original) {\n    console.log(`⚠️ No original data for item ${i} - skipping`);\n    continue;\n  }\n  \n  console.log(`\\n--- Merging item ${i + 1} ---`);\n  console.log(`Spreadsheet: ${original.spreadsheetName || original.name}`);\n  console.log(`Sheets found: ${metadata.sheets?.length || 0}`);\n  \n  // Merge: Keep ALL original data, add sheets metadata\n  const merged = {\n    ...original,           // All original fields (team_id, access_token, etc.)\n    sheets: metadata.sheets || [],  // Add sheets metadata from API\n    apiResponse: metadata  // Keep full API response for reference\n  };\n  \n  // Verify critical fields are present\n  if (!merged.team_id) {\n    console.log(`⚠️ Missing team_id for: ${merged.spreadsheetName}`);\n  }\n  if (!merged.access_token) {\n    console.log(`⚠️ Missing access_token for: ${merged.spreadsheetName}`);\n  }\n  if (!merged.spreadsheetId && !merged.sheetsId) {\n    console.log(`❌ Missing spreadsheet ID for: ${merged.spreadsheetName}`);\n  }\n  \n  mergedItems.push({ json: merged });\n  console.log(`✓ Merged successfully`);\n}\n\nconsole.log(`\\n=== MERGE COMPLETE ===`);\nconsole.log(`Total merged items: ${mergedItems.length}`);\n\nif (mergedItems.length === 0) {\n  console.log('\\n❌ ERROR: No items were merged!');\n  console.log('Check that Extract Sheets IDs is providing data.');\n}\n\nreturn mergedItems;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        896,
+        560
+      ],
+      "id": "d851a751-cf3b-481e-9e70-0ad8b965d9d8",
+      "name": "Merge Sheets Metadata with Original Data"
+    },
+    {
+      "parameters": {
+        "jsCode": "const chunks = [];\nconst chunkSize = 2000;\n\nconsole.log('=== ENHANCED FINANCIAL CHUNKING (FIXED DATES) ===');\n\ntry {\n  for (const item of $input.all()) {\n    const doc = item.json;\n    const teamId = doc.team_id || doc.metadata?.team_id;\n    \n    if (!teamId) continue;\n    if (!doc.content || doc.content.length < 50) continue;\n\n    // CAPTURE DATES\n    const sourceTime = doc.source_modified_time || doc.metadata?.source_modified_time || new Date().toISOString();\n    const processingTime = doc.processing_timestamp || new Date().toISOString();\n    \n    // Get metadata\n    const extractedMeta = doc.extracted_metadata || doc.metadata?.extracted_metadata || {};\n    const csvStructure = doc.csv_structure || doc.metadata?.csv_structure || {};\n    const financialMetrics = doc.financial_metrics || doc.metadata?.financial_metrics || {};\n    const tabMetadata = doc.tab_metadata || doc.metadata?.tab_metadata || {};\n    \n    // Strategy Selection\n    let documentChunks = [];\n    if (doc.document_type === 'transactions' || doc.document_type === 'bank_statement') {\n      documentChunks = chunkBankStatements(doc);\n    } else if (doc.document_type === 'income_statement' || doc.document_type === 'balance_sheet') {\n      documentChunks = chunkFinancialStatements(doc);\n    } else {\n      documentChunks = chunkGenericFinancialContent(doc);\n    }\n    \n    // Process Chunks\n    documentChunks.forEach((chunkContent, index) => {\n      const chunk = {\n        content: chunkContent,\n        chunk_index: index,\n        source_id: doc.source_id,\n        source_type: doc.source_type,\n        title: doc.title,\n        document_type: doc.document_type,\n        \n        // CRITICAL: Pass dates to chunk\n        source_modified_time: sourceTime, \n        processing_timestamp: processingTime,\n        \n        team_id: teamId,\n        \n        extracted_metadata: extractedMeta,\n        classification_confidence: doc.classification_confidence || {},\n        financial_metrics: financialMetrics,\n        csv_structure: csvStructure,\n        tab_metadata: tabMetadata,\n        \n        metadata: {\n          chunk_type: determineChunkType(chunkContent, doc.document_type, index, documentChunks.length),\n          chunking_strategy: getChunkingStrategy(doc.document_type),\n          total_chunks: documentChunks.length,\n          team_id: teamId,\n          \n          // Ensure dates are in metadata\n          document_date: sourceTime,\n          source_modified_time: sourceTime,\n          \n          financial_period: extractedMeta.financial_period,\n          period_start_date: extractedMeta.period_start_date,\n          period_end_date: extractedMeta.period_end_date,\n          period_type: extractedMeta.period_type,\n          data_category: extractedMeta.data_category,\n          document_classification: extractedMeta.document_classification,\n          sheet_name: extractedMeta.sheet_name || tabMetadata.sheet_name,\n          spreadsheet_name: tabMetadata.spreadsheet_name,\n          \n          contains_metrics: chunkContent.includes('$') || /\\d+/.test(chunkContent),\n          contains_headers: chunkContent.includes(':') || chunkContent.includes('|'),\n          contains_dates: /\\d{4}-\\d{2}-\\d{2}|\\d{2}\\/\\d{2}\\/\\d{4}/.test(chunkContent),\n          contains_amounts: /\\$[\\d,]+\\.?\\d*/.test(chunkContent)\n        }\n      };\n      chunks.push(chunk);\n    });\n  }\n} catch (error) {\n  console.error('❌ CHUNKING ERROR:', error.message);\n}\n\n// Helper functions (Keep existing ones: chunkBankStatements, chunkFinancialStatements, etc.)\n// ... [Keep your existing helper functions here from the previous code] ...\nfunction chunkBankStatements(doc) { const content = doc.content; const lines = content.split('\\n').filter(line => line.trim().length > 0); if (lines.length <= 1) return [content]; const header = lines[0]; const dataLines = lines.slice(1); const linesPerChunk = 50; const chunks = []; for (let i = 0; i < dataLines.length; i += linesPerChunk) { const chunkLines = dataLines.slice(i, i + linesPerChunk); chunks.push([header, ...chunkLines].join('\\n')); } return chunks.length > 0 ? chunks : [content]; }\nfunction chunkFinancialStatements(doc) { const content = doc.content; const lines = content.split('\\n'); if (lines.length <= 1) return [content]; const header = lines[0]; const dataLines = lines.slice(1); const linesPerChunk = 35; const chunks = []; for (let i = 0; i < dataLines.length; i += linesPerChunk) { const chunkLines = dataLines.slice(i, i + linesPerChunk); chunks.push([header, ...chunkLines].join('\\n')); } return chunks.length > 0 ? chunks : [content]; }\nfunction chunkGenericFinancialContent(doc) { const content = doc.content; const lines = content.split('\\n'); const chunks = []; let currentChunk = ''; lines.forEach(line => { if (currentChunk.length + line.length > chunkSize) { if (currentChunk.trim().length > 0) { chunks.push(currentChunk.trim()); } currentChunk = line; } else { currentChunk += '\\n' + line; } }); if (currentChunk.trim().length > 0) { chunks.push(currentChunk.trim()); } return chunks.length > 0 ? chunks : [content]; }\nfunction determineChunkType(content, docType, chunkIndex, totalChunks) { if (docType === 'transactions' || docType === 'bank_statement') { return chunkIndex === 0 ? 'table_header' : 'row'; } else if (docType === 'income_statement' || docType === 'balance_sheet') { if (chunkIndex === 0) return 'table_header'; if (chunkIndex === totalChunks - 1) return 'summary'; return 'sheet_section'; } return 'sheet_section'; }\nfunction getChunkingStrategy(docType) { switch (docType) { case 'transactions': case 'bank_statement': return 'transaction_based'; case 'balance_sheet': case 'income_statement': return 'section_based'; case 'cash_flow': return 'flow_based'; default: return 'content_based'; } }\n\nreturn chunks.map(chunk => ({ json: chunk }));"
+      },
+      "id": "90d95c10-d69e-4350-bf40-f31bb95b0bbf",
+      "name": "Enhanced Financial Chunking",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        864,
+        752
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/embeddings",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "input",
+              "value": "={{ $json.content }}"
+            },
+            {
+              "name": "model",
+              "value": "text-embedding-3-small"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "6cc7c2dc-02c3-4acc-b4bc-16e8c9556c33",
+      "name": "Generate Financial Embeddings",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1024,
+        752
+      ],
+      "retryOnFail": true,
+      "credentials": {
+        "openAiApi": {
+          "id": "rAHjtwJ6H3mdRoPS",
+          "name": "OpenAi account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const vectorChunks = [];\n\nconsole.log('=== PREPARE FINANCIAL VECTORS (FIXED DATES) ===');\n\n// 1. GET DATA (MERGE STRATEGY)\nconst embeddingItems = $input.all();\nconst chunkDataItems = $(\"Enhanced Financial Chunking\").all();\n\nif (embeddingItems.length === 0 || chunkDataItems.length === 0) return [];\n\n// Format Postgres Arrays\nfunction formatPostgresArray(arr) {\n  if (!arr || !Array.isArray(arr) || arr.length === 0) return '{}';\n  const escaped = arr.map(item => {\n    const str = String(item || '');\n    return `\"${str.replace(/\\\\/g, '\\\\\\\\').replace(/\"/g, '\\\\\"')}\"`;\n  });\n  return `{${escaped.join(',')}}`;\n}\n\nfunction generateTags(extractedMeta, originalMeta, chunkData) {\n  const tags = new Set();\n  tags.add(chunkData.document_type.replace('_', '-'));\n  if (extractedMeta.data_category || originalMeta.data_category) {\n    tags.add(`category-${(extractedMeta.data_category || originalMeta.data_category).replace('_', '-')}`);\n  }\n  if (extractedMeta.financial_period) tags.add(`period-${extractedMeta.financial_period}`);\n  if (originalMeta.contains_amounts) tags.add('has-amounts');\n  if (originalMeta.contains_dates) tags.add('has-dates');\n  if (chunkData.tab_metadata?.is_multi_tab_document) tags.add('multi-tab');\n  return Array.from(tags);\n}\n\n// Process Items\nconst maxItems = Math.min(embeddingItems.length, chunkDataItems.length);\n\nfor (let i = 0; i < maxItems; i++) {\n  const chunkData = chunkDataItems[i]?.json;\n  const embeddingData = embeddingItems[i]?.json;\n  \n  if (!chunkData || !embeddingData?.data?.[0]?.embedding) continue;\n\n  const teamId = chunkData.team_id || chunkData.metadata?.team_id;\n  if (!teamId) continue;\n\n  // 2. EXTRACT & PRIORITIZE DATES\n  // This is the key fix for your request\n  let documentDate = chunkData.source_modified_time || \n                     chunkData.metadata?.source_modified_time || \n                     chunkData.metadata?.document_date || \n                     new Date().toISOString();\n\n  // Validation check for date format\n  try { documentDate = new Date(documentDate).toISOString(); } \n  catch (e) { documentDate = new Date().toISOString(); }\n\n  const processingTimestamp = chunkData.processing_timestamp || new Date().toISOString();\n\n  // Prepare Metadata\n  const extractedMeta = chunkData.extracted_metadata || {};\n  const originalMeta = chunkData.metadata || {};\n  const keywordsArray = extractedMeta.keywords || originalMeta.keywords || [];\n  const tagsArray = generateTags(extractedMeta, originalMeta, chunkData);\n  \n  const documentUrl = extractedMeta.web_view_link || chunkData.tab_metadata?.webViewLink || `https://docs.google.com/spreadsheets/d/${chunkData.source_id}`;\n\n  const vectorChunk = {\n    team_id: teamId,\n    document_id: chunkData.source_id,\n    document_name: chunkData.title,\n    document_url: documentUrl,\n    content: chunkData.content,\n    content_length: chunkData.content.length,\n    embedding: embeddingData.data[0].embedding,\n    document_type: chunkData.document_type,\n    \n    // DATES FOR SQL\n    document_date: documentDate,         // <-- FILE DATE\n    processing_timestamp: processingTimestamp, // <-- INSERT DATE\n    \n    financial_period: extractedMeta.financial_period || originalMeta.financial_period,\n    period_start_date: extractedMeta.period_start_date || originalMeta.period_start_date,\n    period_end_date: extractedMeta.period_end_date || originalMeta.period_end_date,\n    chunk_index: chunkData.chunk_index || 0,\n    data_category: extractedMeta.data_category || originalMeta.data_category || chunkData.document_type,\n    \n    keywords: formatPostgresArray(keywordsArray),\n    tags: formatPostgresArray(tagsArray),\n    \n    metadata: {\n      detected_currency: extractedMeta.detected_currency || 'USD',\n      chunk_type: originalMeta.chunk_type,\n      source_hash: chunkData.content_hash || null,\n      \n      // Ensure date is correct in metadata JSONB as well\n      document_date: documentDate, \n      processing_timestamp: processingTimestamp,\n      \n      team_id: teamId,\n      sheet_name: extractedMeta.sheet_name || chunkData.tab_metadata?.sheet_name,\n      spreadsheet_name: chunkData.tab_metadata?.spreadsheet_name,\n      classification_confidence: chunkData.classification_confidence,\n      financial_metrics: chunkData.financial_metrics\n    }\n  };\n  \n  vectorChunks.push(vectorChunk);\n}\n\nreturn vectorChunks.map(chunk => ({ json: chunk }));"
+      },
+      "id": "80e0ef20-811c-4da4-84f8-6bae87ff79a6",
+      "name": "Prepare Financial Vector Chunks (Multi-Team)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        752
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO document_chunks_financial (\n  team_id,\n  document_id,\n  document_name,\n  document_url,\n  content,\n  content_length,\n  embedding,\n  document_type,\n  specific_type,\n  financial_period,\n  period_start_date,\n  period_end_date,\n  chunk_index,\n  data_category,\n  currency,\n  chunk_type,\n  processing_timestamp,\n  source_hash,\n  keywords,\n  tags,\n  sheet_name,\n  source_id,\n  metadata\n)\nVALUES (\n  $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23\n)\nRETURNING id",
+        "options": {
+          "queryReplacement": "={{ $json.team_id }}, {{ $json.document_id }}, {{ $json.document_name }}, {{ $json.document_url }}, {{ $json.content }}, {{ $json.content_length }}, {{ $json.embedding }}, {{ $json.document_type }}, {{ $json.document_type }}, {{ $json.financial_period }}, {{ $json.period_start_date }}, {{ $json.period_end_date }}, {{ $json.chunk_index }}, {{ $json.data_category }}, {{ $json.metadata.detected_currency || 'USD' }}, {{ $json.metadata.chunk_type }}, {{ $json.processing_timestamp }}, {{ $json.metadata.source_hash }}, {{ $json.keywords }}, {{ $json.tags }}, {{ $json.metadata.sheet_name }}, {{ $json.document_id }}, {{ $json.metadata }}"
+        }
+      },
+      "id": "81d89104-2b2d-4d43-835c-899af4392d41",
+      "name": "Store Financial Vector Chunks",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        1392,
+        752
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "kEtmOjsypxatQPLu",
+          "name": "Postgres RocketHub"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// FINANCIAL PROCESSING METRICS\n// FIX: Gets team_id from input items instead of loop context\n\nconsole.log('=== FINANCIAL PROCESSING COMPLETE ===');\n\n// Get counts from upstream nodes\nlet docsStored = 0;\nlet vectorsStored = 0;\n\ntry {\n  docsStored = $('Store Financial Documents').all().length;\n} catch (error) {\n  console.log('⚠️ Could not get Store Financial Documents count');\n}\n\ntry {\n  vectorsStored = $('Store Financial Vector Chunks').all().length;\n} catch (error) {\n  console.log('⚠️ Could not get Store Financial Vector Chunks count');\n}\n\n// Get team_id from input items first\nlet teamId = 'unknown';\n\n// Try to get from input (passed through from previous nodes)\nconst inputItems = $input.all();\nif (inputItems.length > 0) {\n  teamId = inputItems[0].json?.team_id || \n           inputItems[0].json?.metadata?.team_id || \n           'unknown';\n}\n\n// Fallback: Try to get from Store Financial Documents output\nif (teamId === 'unknown') {\n  try {\n    const storedDocs = $('Store Financial Documents').all();\n    if (storedDocs.length > 0) {\n      teamId = storedDocs[0].json?.team_id || 'unknown';\n    }\n  } catch (error) {\n    console.log('⚠️ Could not get team_id from Store Financial Documents');\n  }\n}\n\n// Fallback: Try loop context (may not work in all cases)\nif (teamId === 'unknown') {\n  try {\n    const teamConnection = $('Loop Over Each Team').first();\n    if (teamConnection && teamConnection.json) {\n      teamId = teamConnection.json.team_id || 'unknown';\n    }\n  } catch (error) {\n    console.log('⚠️ Could not get team_id from Loop Over Each Team');\n  }\n}\n\nconsole.log(`Team: ${teamId}`);\nconsole.log(`Documents stored: ${docsStored}`);\nconsole.log(`Vector chunks stored: ${vectorsStored}`);\n\nreturn [{ \n  json: {\n    team_id: teamId,\n    documents_stored: docsStored,\n    vectors_stored: vectorsStored,\n    processing_type: 'financial',\n    completion_time: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "8830199d-ece0-477d-b174-2730734504e8",
+      "name": "Comprehensive Financial Success Metrics",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1584,
+        752
+      ]
+    },
+    {
+      "parameters": {
+        "tableId": "documents",
+        "dataToSend": "autoMapInputData"
+      },
+      "id": "f3ffd02b-0a85-46cd-becf-961d07c18000",
+      "name": "Store Financial Documents",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        720,
+        752
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "6SAgSR5kLIGxGnI7",
+          "name": "Supabase RocketHub"
+        }
+      },
+      "continueOnFail": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\nconst teamData = $('Loop Over Each Team').item.json;\n\nif (!response || !response.files) {\n  console.log('⚠️ No strategy files found');\n  return [{\n    json: {\n      files: [],\n      folder_type: 'strategy',\n      team_id: teamData.team_id,\n      user_id: teamData.user_id,\n      access_token: teamData.access_token,\n      parent_folder_id: teamData.strategy_folder_id\n    }\n  }];\n}\n\nconsole.log(`Tagging ${response.files.length} files as 'strategy' for team ${teamData.team_id}`);\n\nreturn [{\n  json: {\n    ...response,\n    folder_type: 'strategy',\n    source_folder: 'strategy',\n    team_id: teamData.team_id,\n    user_id: teamData.user_id,\n    access_token: teamData.access_token,\n    parent_folder_id: teamData.strategy_folder_id\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1264,
+        384
+      ],
+      "id": "b28b682d-9488-4183-ae62-971e30749600",
+      "name": "Tag Strategy Files"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ✅ CRITICAL FIX: Loop Continuation Point\n// This node ensures the workflow continues even if a user has no folders configured\n\nconst teamConnection = $('Loop Over Each Team').item.json;\nconst teamId = teamConnection.team_id;\n\nconsole.log('=== TEAM PROCESSING CHECKPOINT ===');\nconsole.log(`Team: ${teamId}`);\nconsole.log('Folder checks complete for this team.');\nconsole.log('Continuing to next team (if any)...');\n\n// Pass through team info so loop can continue\nreturn [{\n  json: {\n    team_id: teamId,\n    checkpoint: 'folder_checks_complete',\n    timestamp: new Date().toISOString()\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1856,
+        752
+      ],
+      "id": "ecc7c401-9275-4e37-bcf1-0391ceeca5b6",
+      "name": "Loop Continuation Point"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Split all chunks into batches of 100 for sequential processing\nconst chunkBatchSize = 100; // Adjust based on performance (25-100)\nconst allChunks = $input.all();\n\nconsole.log('=== BATCHING CHUNKS FOR EMBEDDING GENERATION ===');\nconsole.log(`Total chunks to process: ${allChunks.length}`);\nconsole.log(`Batch size: ${chunkBatchSize}`);\n\nif (allChunks.length === 0) {\n  console.log('⚠️ No chunks to batch - returning empty');\n  return [];\n}\n\nconst batches = [];\n\nfor (let i = 0; i < allChunks.length; i += chunkBatchSize) {\n  const batchChunks = allChunks.slice(i, i + chunkBatchSize);\n  \n  batches.push({\n    json: {\n      batch_index: Math.floor(i / chunkBatchSize) + 1,\n      total_batches: Math.ceil(allChunks.length / chunkBatchSize),\n      batch_size: batchChunks.length,\n      chunks: batchChunks.map(item => item.json) // Extract json from each item\n    }\n  });\n}\n\nconsole.log(`Created ${batches.length} batches of chunks`);\nconsole.log(`Batches: ${batches.map(b => b.json.batch_size).join(', ')} chunks each`);\n\nreturn batches;\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        448,
+        1120
+      ],
+      "id": "507462aa-bf9c-449a-8eb7-eb7bf72d9eee",
+      "name": "Batch Chunk Groups"
+    },
+    {
+      "parameters": {
+        "options": {
+          "reset": false
+        }
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        752,
+        1120
+      ],
+      "id": "e79a0c32-8bba-4c52-8149-8faaa35c9317",
+      "name": "Loop Over Chunk Batches"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Signal batch completion for logging\nconst batchIndex = $('Loop Over Chunk Batches').item.json.batch_index;\nconst totalBatches = $('Loop Over Chunk Batches').item.json.total_batches;\n\n// Count stored vectors\nlet meetingsStored = 0;\nlet strategyStored = 0;\n\ntry {\n  meetingsStored = $('Store Vector Chunks - Meetings').all().length;\n} catch (error) {\n  console.log('Meetings node not executed (no meetings chunks)');\n}\n\ntry {\n  strategyStored = $('Store Vector Chunks - Strategy').all().length;\n} catch (error) {\n  console.log('Strategy node not executed (no strategy chunks)');\n}\n\nconst totalStored = meetingsStored + strategyStored;\n\nconsole.log(`=== BATCH ${batchIndex}/${totalBatches} COMPLETE ===`);\nconsole.log(`Vectors stored: ${totalStored} (${meetingsStored} meetings, ${strategyStored} strategy)`);\n\n// Pass signal to continue loop\nreturn [{\n  json: {\n    batch_index: batchIndex,\n    total_batches: totalBatches,\n    vectors_stored: totalStored,\n    meetings_vectors: meetingsStored,\n    strategy_vectors: strategyStored,\n    batch_complete: true\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1952,
+        1088
+      ],
+      "id": "edda056f-dae4-4b60-8838-575ebb925a74",
+      "name": "Batch Completion Signal"
+    },
+    {
+      "parameters": {
+        "jsCode": "console.log('=== HOLDING DOCUMENTS FOR VECTOR PROCESSING ===');\nconst documents = $input.all();\nconsole.log(`Holding ${documents.length} documents until vectors are stored`);\n\n// Just pass through the data unchanged\nreturn documents;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        720,
+        960
+      ],
+      "id": "08a13960-b0fa-48d0-88c8-2c4d519e4570",
+      "name": "Wait for Vectors"
+    },
+    {
+      "parameters": {
+        "jsCode": "console.log('=== PREPARE DOCUMENTS FOR STORAGE (WITH METRICS PASS-THROUGH) ===');\n\n// STEP 1: Get documents from \"Wait for Vectors\" node\nlet documents = [];\ntry {\n  documents = $('Wait for Vectors').all();\n  console.log(`✓ Retrieved ${documents.length} documents from \"Wait for Vectors\"`);\n} catch (error) {\n  console.log('⚠️ Could not access \"Wait for Vectors\" node');\n  return [];\n}\n\nif (documents.length === 0) {\n  console.log('ℹ️ No documents to store - exiting');\n  return [];\n}\n\n// STEP 2: Get vector success confirmation\nlet vectorMetrics = {\n  total_batches_processed: 0,\n  total_vectors_stored: 0,\n  meetings_chunks: 0,\n  strategy_chunks: 0,\n  vectors_processed: false\n};\n\ntry {\n  const batchMetrics = $('Batch Completion Metrics').first().json;\n  vectorMetrics = {\n    ...batchMetrics,\n    vectors_processed: true\n  };\n  console.log(`✓ Retrieved vector metrics`);\n  console.log(`  - Batches: ${vectorMetrics.total_batches_processed}`);\n  console.log(`  - Vectors: ${vectorMetrics.total_vectors_stored}`);\n} catch (error) {\n  console.log('⚠️ \"Batch Completion Metrics\" not executed - no vectors processed');\n}\n\n// STEP 3: Check if vectors were stored\nif (!vectorMetrics.vectors_processed || vectorMetrics.total_vectors_stored === 0) {\n  console.log('\\n❌ SKIPPING document storage - no vectors were stored');\n  return [];\n}\n\n// STEP 4: Add vector metrics to each document as metadata\nconsole.log('\\n✅ VECTORS SUCCEEDED - Preparing documents with metrics');\nconst documentsWithMetrics = documents.map(doc => {\n  return {\n    json: {\n      ...doc.json,\n      _vector_metrics: vectorMetrics // Attach metrics to each document\n    }\n  };\n});\n\nconsole.log(`Prepared ${documentsWithMetrics.length} documents with vector metrics attached`);\n\nreturn documentsWithMetrics;\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1744,
+        928
+      ],
+      "id": "360dc0ce-423a-409c-81eb-ab3bc9993fb1",
+      "name": "Prepare Documents for Storage"
+    },
+    {
+      "parameters": {
+        "jsCode": "console.log('=== DOCUMENT STORAGE METRICS ===');\n\nconst storedDocs = $input.all();\nconst docsStored = storedDocs.length;\n\nconsole.log(`Documents stored: ${docsStored}`);\n\n// Get team info\nlet teamId = null;\ntry {\n  const teamConnection = $('Loop Over Each Team').item.json;\n  teamId = teamConnection.team_id;\n  console.log(`Team ID: ${teamId}`);\n} catch (error) {\n  console.log('⚠️ Could not get team_id from loop context');\n}\n\n// Get vector metrics from the document data (passed through from Prepare Documents for Storage)\nlet vectorMetrics = {\n  total_vectors_stored: 0,\n  meetings_chunks: 0,\n  strategy_chunks: 0,\n  total_batches_processed: 0\n};\n\nif (storedDocs.length > 0 && storedDocs[0].json._vector_metrics) {\n  vectorMetrics = storedDocs[0].json._vector_metrics;\n  console.log('✓ Retrieved vector metrics from document metadata');\n} else {\n  console.log('⚠️ No vector metrics found in document data');\n}\n\nconst metrics = {\n  team_id: teamId,\n  documents_stored: docsStored,\n  vectors_stored: vectorMetrics.total_vectors_stored,\n  meetings_vectors: vectorMetrics.meetings_chunks,\n  strategy_vectors: vectorMetrics.strategy_chunks,\n  batches_processed: vectorMetrics.total_batches_processed,\n  storage_timestamp: new Date().toISOString(),\n  storage_type: 'post_vector_verification'\n};\n\nconsole.log('\\n📊 Storage Metrics:');\nconsole.log(`  Documents: ${metrics.documents_stored}`);\nconsole.log(`  Total Vectors: ${metrics.vectors_stored}`);\nconsole.log(`    - Meetings: ${metrics.meetings_vectors}`);\nconsole.log(`    - Strategy: ${metrics.strategy_vectors}`);\nconsole.log(`  Ratio: ${metrics.vectors_stored > 0 ? (metrics.vectors_stored / metrics.documents_stored).toFixed(1) : 0} chunks per doc`);\n\nreturn [{ json: metrics }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2192,
+        928
+      ],
+      "id": "6b9a0532-de2b-41f6-94bc-b001d7aa99c5",
+      "name": "Document Storage Metrics"
+    },
+    {
+      "parameters": {
+        "jsCode": "console.log('=== CLEANING DOCUMENTS FOR DATABASE STORAGE ===');\n\nconst documents = $input.all();\nconsole.log(`Cleaning ${documents.length} documents`);\n\nconst cleanedDocuments = documents.map(doc => {\n  const data = { ...doc.json };\n  \n  // Remove temporary fields that were used for passing data between nodes\n  delete data._vector_metrics;\n  \n  // Also remove any other temporary fields (if you added any)\n  // delete data._any_other_temp_field;\n  \n  return { json: data };\n});\n\nconsole.log(`✓ Cleaned ${cleanedDocuments.length} documents`);\nconsole.log('Removed fields: _vector_metrics');\n\nreturn cleanedDocuments;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1888,
+        928
+      ],
+      "id": "02d7d67f-4a17-4b9a-81c8-6de292fb7d27",
+      "name": "Clean Documents for Database Storage"
+    },
+    {
+      "parameters": {
+        "jsCode": "console.log('=== ALL DOCUMENT BATCHES COMPLETE ===');\n\nconst loopNode = $('Loop Over Batches');\nlet totalBatches = 0;\n\ntry {\n  totalBatches = loopNode.first()?.json?.total_batches || 0;\n} catch (error) {\n  console.log('Could not get total batches count');\n}\n\nconsole.log(`✅ Processed ${totalBatches} batches of documents`);\nconsole.log('Continuing to next team...');\n\nreturn [{\n  json: {\n    batches_processed: totalBatches,\n    all_batches_complete: true,\n    timestamp: new Date().toISOString()\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        432
+      ],
+      "id": "c69ab6ec-84e5-44e5-8dcd-f96bce2fcb23",
+      "name": "Batch Completion Notification"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        1232,
+        928
+      ],
+      "id": "155487a4-e1b6-469f-8dab-cc8825b30ffd",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "path": "21473ebb-405d-4be1-ab71-6bf2a2d4063b",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -16,
+        336
+      ],
+      "id": "fa8d7eff-8ce0-491b-9f67-e7633b18cbb4",
+      "name": "Webhook",
+      "webhookId": "21473ebb-405d-4be1-ab71-6bf2a2d4063b"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 15
+            }
+          ]
+        }
+      },
+      "id": "1e91c874-dd37-4666-a56f-b357572311c7",
+      "name": "15 Minutes",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -16,
+        192
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// FILTER: Separate successful API responses from permission errors\n// This handles 403 errors when users need to reconnect their Google accounts\n\nconst allItems = $input.all();\nconst successfulItems = [];\nconst failedItems = [];\n\nconsole.log('=== FILTERING TAB FETCH RESULTS ===');\nconsole.log(`Total items received: ${allItems.length}`);\n\nfor (let i = 0; i < allItems.length; i++) {\n  const item = allItems[i];\n  const json = item.json;\n  \n  // Check if this is an error response\n  // HTTP Request node with continueOnFail puts error in json.error or returns HTTP error structure\n  const hasError = json.error || json.statusCode === 403 || json.statusCode === 401 || \n                   (json.code && json.code === 403) ||\n                   (json.message && (json.message.includes('PERMISSION_DENIED') || json.message.includes('permission')));\n  \n  if (hasError) {\n    // Get metadata from the upstream node to identify which sheet/team failed\n    let teamId = 'unknown';\n    let sheetName = 'unknown';\n    let spreadsheetId = 'unknown';\n    \n    try {\n      const expandedTabs = $('Expand to Individual Tabs').all();\n      if (expandedTabs[i]) {\n        teamId = expandedTabs[i].json.team_id || 'unknown';\n        sheetName = expandedTabs[i].json.sheetName || 'unknown';\n        spreadsheetId = expandedTabs[i].json.spreadsheetId || 'unknown';\n      }\n    } catch (e) {\n      console.log('Could not retrieve metadata for failed item');\n    }\n    \n    console.log(`❌ PERMISSION ERROR - Team: ${teamId}, Sheet: ${sheetName}`);\n    console.log(`   Spreadsheet ID: ${spreadsheetId}`);\n    console.log(`   Error: ${json.message || json.error || 'Unknown error'}`);\n    console.log(`   ⚠️ User needs to reconnect their Google account with new scopes`);\n    \n    failedItems.push({\n      index: i,\n      team_id: teamId,\n      spreadsheet_id: spreadsheetId,\n      sheet_name: sheetName,\n      error: json.message || json.error || 'Permission denied',\n      needs_reconnect: true\n    });\n  } else {\n    // This is a successful response with data\n    successfulItems.push(item);\n  }\n}\n\nconsole.log(`\\n=== FILTER RESULTS ===`);\nconsole.log(`✅ Successful: ${successfulItems.length}`);\nconsole.log(`❌ Failed (need reconnect): ${failedItems.length}`);\n\nif (failedItems.length > 0) {\n  console.log('\\n📋 Teams needing Google account reconnection:');\n  const uniqueTeams = [...new Set(failedItems.map(f => f.team_id))];\n  uniqueTeams.forEach(t => console.log(`   - Team ID: ${t}`));\n}\n\n// If no successful items, return empty array to stop this branch\nif (successfulItems.length === 0) {\n  console.log('\\n⚠️ No successful tab fetches - financial processing will be skipped');\n  console.log('Non-financial documents (meetings, strategy) will still be processed.');\n  return [];\n}\n\n// Return only successful items for continued processing\nreturn successfulItems;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1440,
+        560
+      ],
+      "id": "3b174dd4-c821-4963-ab23-c7dcc4e760d3",
+      "name": "Filter Successful Tab Fetches"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Pass through all items and add a reset signal\nconst items = $input.all();\nconsole.log(`=== NEW CHUNK BATCHES INCOMING: ${items.length} batches ===`);\n\n// Add a unique timestamp to each batch to help n8n recognize this as new data\nconst timestamp = Date.now();\nreturn items.map((item, index) => ({\n  json: {\n    ...item.json,\n    _loop_reset_timestamp: timestamp,\n    _batch_sequence: index\n  }\n}));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        608,
+        1120
+      ],
+      "id": "80d3aa0b-3e56-415a-85a9-dd0c5de37f94",
+      "name": "Reset Chunk Loop Context"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get the input data\nconst batch = $input.first().json;\n\n// === SAFETY CHECK ===\n// Check if this is a \"Signal\" object from the loopback (Garbage Data)\n// If it has 'batch_complete' OR creates a missing 'chunks' array, we stop.\nif (batch.batch_complete === true || !batch.chunks) {\n  console.log('🛑 Received Loop Signal - Stopping this branch to allow Loop to continue.');\n  // Returning an empty array tells n8n to STOP executing this branch\n  // The Loop node will simply proceed to the next item or Finish.\n  return []; \n}\n\nconsole.log(`=== PROCESSING BATCH ${batch.batch_index}/${batch.total_batches} ===`);\nconsole.log(`Chunks in batch: ${batch.chunks.length}`);\n\n// Return the valid chunks\nreturn batch.chunks.map(chunk => ({ json: chunk }));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        928,
+        1120
+      ],
+      "id": "050b33f5-25e7-4726-97dd-4264afe5ae6b",
+      "name": "Extract Chunks from Batch"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Get Active Drive Connections": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Each Team",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Each Team": {
+      "main": [
+        [
+          {
+            "node": "Team Completion Metrics",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get Team's Existing Documents",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "If2",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "If3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Team's Existing Documents": {
+      "main": [
+        [
+          {
+            "node": "Merge Discovery Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Meetings Folder Files": {
+      "main": [
+        [
+          {
+            "node": "Tag Meeting Files",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Strategy Folder Files": {
+      "main": [
+        [
+          {
+            "node": "Tag Strategy Files",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Discovery Results": {
+      "main": [
+        [
+          {
+            "node": "Combine & Filter NEW Files (Improved)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Combine & Filter NEW Files (Improved)": {
+      "main": [
+        [
+          {
+            "node": "Check If Any Files to Process",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check If Any Files to Process": {
+      "main": [
+        [
+          {
+            "node": "Split Financial vs Non-Financial",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Batch into Groups of 10",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Loop Over Each Team",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Batch into Groups of 10": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Batches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Batches": {
+      "main": [
+        [
+          {
+            "node": "Batch Completion Notification",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Download Content (Batch)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download Content (Batch)": {
+      "main": [
+        [
+          {
+            "node": "Filter Successful Downloads",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Successful Downloads": {
+      "main": [
+        [
+          {
+            "node": "Prepare Documents",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Documents": {
+      "main": [
+        [
+          {
+            "node": "Chunk Content",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Wait for Vectors",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Store Documents (UPSERT)": {
+      "main": [
+        [
+          {
+            "node": "Document Storage Metrics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Chunk Content": {
+      "main": [
+        [
+          {
+            "node": "Batch Chunk Groups",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate OpenAI Embeddings": {
+      "main": [
+        [
+          {
+            "node": "Prepare Vector Chunks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Vector Chunks": {
+      "main": [
+        [
+          {
+            "node": "Filter Meetings Only",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Filter Strategy Only",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Store Vector Chunks - Meetings": {
+      "main": [
+        [
+          {
+            "node": "Collect Storage Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Store Vector Chunks - Strategy": {
+      "main": [
+        [
+          {
+            "node": "Collect Storage Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Batch Completion Metrics": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Team Completion Metrics": {
+      "main": [
+        []
+      ]
+    },
+    "Tag Meeting Files": {
+      "main": [
+        [
+          {
+            "node": "Merge Discovery Results",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Filter Meetings Only": {
+      "main": [
+        [
+          {
+            "node": "Store Vector Chunks - Meetings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Strategy Only": {
+      "main": [
+        [
+          {
+            "node": "Store Vector Chunks - Strategy",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Collect Storage Results": {
+      "main": [
+        [
+          {
+            "node": "Batch Completion Signal",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Financial Folder Files": {
+      "main": [
+        [
+          {
+            "node": "Tag Financial Files",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tag Financial Files": {
+      "main": [
+        [
+          {
+            "node": "Merge Discovery Results",
+            "type": "main",
+            "index": 3
+          }
+        ]
+      ]
+    },
+    "Split Financial vs Non-Financial": {
+      "main": [
+        [
+          {
+            "node": "Route by File Type",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route by File Type": {
+      "main": [
+        [
+          {
+            "node": "Extract Sheets IDs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Sheets IDs": {
+      "main": [
+        [
+          {
+            "node": "Get Sheet Metadata",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Sheet Metadata": {
+      "main": [
+        [
+          {
+            "node": "Merge Sheets Metadata with Original Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Expand to Individual Tabs": {
+      "main": [
+        [
+          {
+            "node": "Fetch Individual Tab Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Individual Tab Data": {
+      "main": [
+        [
+          {
+            "node": "Filter Successful Tab Fetches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Sheet Data1": {
+      "main": [
+        [
+          {
+            "node": "Prepare Financial Documents",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Financial Documents": {
+      "main": [
+        [
+          {
+            "node": "Store Financial Documents",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Get Financial Folder Files",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Loop Continuation Point",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If2": {
+      "main": [
+        [
+          {
+            "node": "Get Meetings Folder Files",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Loop Continuation Point",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If3": {
+      "main": [
+        [
+          {
+            "node": "Get Strategy Folder Files",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Loop Continuation Point",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Sheets Metadata with Original Data": {
+      "main": [
+        [
+          {
+            "node": "Expand to Individual Tabs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enhanced Financial Chunking": {
+      "main": [
+        [
+          {
+            "node": "Generate Financial Embeddings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Financial Embeddings": {
+      "main": [
+        [
+          {
+            "node": "Prepare Financial Vector Chunks (Multi-Team)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Financial Vector Chunks (Multi-Team)": {
+      "main": [
+        [
+          {
+            "node": "Store Financial Vector Chunks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Store Financial Vector Chunks": {
+      "main": [
+        [
+          {
+            "node": "Comprehensive Financial Success Metrics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Store Financial Documents": {
+      "main": [
+        [
+          {
+            "node": "Enhanced Financial Chunking",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Comprehensive Financial Success Metrics": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Each Team",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tag Strategy Files": {
+      "main": [
+        [
+          {
+            "node": "Merge Discovery Results",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "Loop Continuation Point": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Each Team",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Batch Chunk Groups": {
+      "main": [
+        [
+          {
+            "node": "Reset Chunk Loop Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Chunk Batches": {
+      "main": [
+        [
+          {
+            "node": "Batch Completion Metrics",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Extract Chunks from Batch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Batch Completion Signal": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Chunk Batches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait for Vectors": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Documents for Storage": {
+      "main": [
+        [
+          {
+            "node": "Clean Documents for Database Storage",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Document Storage Metrics": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Batches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clean Documents for Database Storage": {
+      "main": [
+        [
+          {
+            "node": "Store Documents (UPSERT)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Batch Completion Notification": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Each Team",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Prepare Documents for Storage",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Get Active Drive Connections",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "15 Minutes": {
+      "main": [
+        [
+          {
+            "node": "Get Active Drive Connections",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Successful Tab Fetches": {
+      "main": [
+        [
+          {
+            "node": "Process Sheet Data1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reset Chunk Loop Context": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Chunk Batches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Chunks from Batch": {
+      "main": [
+        [
+          {
+            "node": "Generate OpenAI Embeddings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all",
+    "saveManualExecutions": true,
+    "saveExecutionProgress": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "versionId": "bc5b63a8-82f1-40b6-b6a7-855121e4d6f2",
+  "meta": {
+    "instanceId": "339010dd32d635dc12d1b22611396aba8fa80f3c41d9792b7d3b5098ba3bdda1"
+  },
+  "id": "8hZRmaqBQIQXSZVb",
+  "tags": []
+}
