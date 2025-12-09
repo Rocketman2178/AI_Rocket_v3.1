@@ -24,6 +24,7 @@ import { PasswordResetPage } from './components/PasswordResetPage';
 import { LaunchPreparationFlow } from './components/LaunchPreparationFlow';
 import { PrivacyPolicyPage } from './components/PrivacyPolicyPage';
 import { TermsOfServicePage } from './components/TermsOfServicePage';
+import { MoonshotChallengePage } from './components/MoonshotChallengePage';
 import { useGmailTokenRefresh } from './hooks/useGmailTokenRefresh';
 import { useFeedbackPrompt } from './hooks/useFeedbackPrompt';
 import { useActivityTracking } from './hooks/useActivityTracking';
@@ -280,6 +281,9 @@ const AppContent: React.FC = () => {
       {/* Legal Pages - Public Routes */}
       <Route path="/privacy" element={<PrivacyPolicyPage />} />
       <Route path="/terms" element={<TermsOfServicePage />} />
+
+      {/* Moonshot Challenge - Public Route */}
+      <Route path="/moonshot" element={<MoonshotChallengePage />} />
 
       {/* Main App Routes */}
       <Route

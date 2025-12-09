@@ -6,6 +6,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { LoadingCarousel } from './LoadingCarousel';
 import { FUEL_LEVELS } from '../../lib/launch-preparation-utils';
 import { syncAllFolders } from '../../lib/manual-folder-sync';
+import { OAuthReconnectModal } from '../OAuthReconnectModal';
 
 interface SyncDataStepProps {
   onComplete: () => void;
@@ -23,6 +24,7 @@ export const SyncDataStep: React.FC<SyncDataStepProps> = ({ onComplete, onGoBack
   const [documentCounts, setDocumentCounts] = useState<{ meetings: number; strategy: number; financial: number; projects: number }>({ meetings: 0, strategy: 0, financial: 0, projects: 0 });
   const [checkAttempts, setCheckAttempts] = useState(0);
   const [showNoDocumentModal, setShowNoDocumentModal] = useState(false);
+  const [showTokenExpiredModal, setShowTokenExpiredModal] = useState(false);
   const [currentLevel, setCurrentLevel] = useState(0);
   const [newLevel, setNewLevel] = useState(0);
   const [leveledUp, setLeveledUp] = useState(false);
@@ -88,6 +90,14 @@ export const SyncDataStep: React.FC<SyncDataStepProps> = ({ onComplete, onGoBack
       }
     } catch (error) {
       console.error('Error triggering manual sync:', error);
+
+      // Check if the error is due to expired Google token
+      if (error instanceof Error && error.message === 'GOOGLE_TOKEN_EXPIRED') {
+        console.log('Token expired - showing reconnect modal');
+        setSyncing(false);
+        setShowTokenExpiredModal(true);
+        return;
+      }
     }
 
     // Start checking for data immediately
@@ -642,6 +652,22 @@ export const SyncDataStep: React.FC<SyncDataStepProps> = ({ onComplete, onGoBack
             </div>
           </div>
         </div>
+      )}
+
+      {/* Token Expired Modal */}
+      {showTokenExpiredModal && (
+        <OAuthReconnectModal
+          onClose={() => {
+            setShowTokenExpiredModal(false);
+            if (onGoBack) {
+              onGoBack();
+            }
+          }}
+          onReconnect={() => {
+            setShowTokenExpiredModal(false);
+            // The initiateGoogleDriveOAuth in the modal will redirect them
+          }}
+        />
       )}
     </>
   );

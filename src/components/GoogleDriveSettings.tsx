@@ -134,10 +134,21 @@ export const GoogleDriveSettings: React.FC<GoogleDriveSettingsProps> = ({ fromLa
       }
     } catch (error) {
       console.error('[SYNC] Exception during sync:', error);
-      setSyncResult({
-        success: false,
-        message: error instanceof Error ? error.message : 'Failed to trigger sync',
-      });
+
+      // Check if the error is due to expired Google token
+      if (error instanceof Error && error.message === 'GOOGLE_TOKEN_EXPIRED') {
+        setSyncResult({
+          success: false,
+          message: 'Your Google Drive connection has expired. Please reconnect your account.',
+        });
+        // Refresh the connection status to trigger the reconnect flow
+        loadConnection();
+      } else {
+        setSyncResult({
+          success: false,
+          message: error instanceof Error ? error.message : 'Failed to trigger sync',
+        });
+      }
     } finally {
       console.log('[SYNC] Finally block - setting manualSyncing to false');
       setManualSyncing(false);
@@ -528,6 +539,13 @@ export const GoogleDriveSettings: React.FC<GoogleDriveSettingsProps> = ({ fromLa
         }
       } catch (syncError) {
         console.error('[SYNC] Error triggering sync after folder save:', syncError);
+
+        // Check if the error is due to expired Google token
+        if (syncError instanceof Error && syncError.message === 'GOOGLE_TOKEN_EXPIRED') {
+          setError('Your Google Drive connection has expired. Please reconnect your account.');
+          // Refresh the connection status to trigger the reconnect flow
+          loadConnection();
+        }
         // Don't fail the save operation if sync fails
       }
     } catch (err: any) {

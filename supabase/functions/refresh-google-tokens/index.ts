@@ -132,6 +132,8 @@ Deno.serve(async (req: Request) => {
       console.log(`💾 Found ${driveConnections?.length || 0} Drive tokens to refresh`);
 
       for (const connection of driveConnections || []) {
+        const previousExpiry = connection.token_expires_at;
+
         try {
           console.log(`🔄 Refreshing Drive token for user: ${connection.user_id}`);
 
@@ -150,6 +152,17 @@ Deno.serve(async (req: Request) => {
 
           if (!tokenResponse.ok) {
             console.error(`❌ Failed to refresh Drive token for ${connection.user_id}:`, tokens);
+
+            // Log the failure
+            await supabase.from('token_refresh_logs').insert({
+              user_id: connection.user_id,
+              team_id: connection.team_id,
+              service: 'google_drive',
+              success: false,
+              error_code: tokens.error || 'unknown',
+              error_message: tokens.error_description || 'Token refresh failed',
+              previous_expiry: previousExpiry
+            });
 
             // If invalid grant, mark as error
             if (tokens.error === 'invalid_grant') {
@@ -183,9 +196,30 @@ Deno.serve(async (req: Request) => {
             .update(updateData)
             .eq('user_id', connection.user_id);
 
+          // Log the success
+          await supabase.from('token_refresh_logs').insert({
+            user_id: connection.user_id,
+            team_id: connection.team_id,
+            service: 'google_drive',
+            success: true,
+            previous_expiry: previousExpiry,
+            new_expiry: expiresAt.toISOString()
+          });
+
           console.log(`✅ Drive token refreshed for user: ${connection.user_id}`);
         } catch (err) {
           console.error(`❌ Error refreshing Drive token for ${connection.user_id}:`, err);
+
+          // Log the exception
+          await supabase.from('token_refresh_logs').insert({
+            user_id: connection.user_id,
+            team_id: connection.team_id,
+            service: 'google_drive',
+            success: false,
+            error_code: 'exception',
+            error_message: err instanceof Error ? err.message : 'Unknown error',
+            previous_expiry: previousExpiry
+          });
         }
       }
     }

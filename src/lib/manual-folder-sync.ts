@@ -202,6 +202,34 @@ export async function syncAllFolders(options: SyncAllFoldersOptions): Promise<Sy
 
   console.log('syncAllFolders called with:', { teamId, userId, folderTypes });
 
+  // First check if there's an expired/inactive connection
+  console.log('Checking for expired connections...');
+  let { data: expiredConnection, error: expiredError } = await supabase
+    .from('user_drive_connections')
+    .select('connection_status, is_active')
+    .eq('user_id', userId)
+    .eq('is_active', false)
+    .maybeSingle();
+
+  // Also check team connection if user connection doesn't exist
+  if (!expiredConnection && !expiredError) {
+    const result = await supabase
+      .from('user_drive_connections')
+      .select('connection_status, is_active')
+      .eq('team_id', teamId)
+      .eq('is_active', false)
+      .maybeSingle();
+
+    expiredConnection = result.data;
+    expiredError = result.error;
+  }
+
+  // If there's an expired connection, throw specific error
+  if (expiredConnection?.connection_status === 'token_expired') {
+    console.error('Token is expired - user needs to reconnect');
+    throw new Error('GOOGLE_TOKEN_EXPIRED');
+  }
+
   // Get folder configuration from user_drive_connections
   // First try to get the user's own connection
   console.log('Querying by user_id:', userId);
