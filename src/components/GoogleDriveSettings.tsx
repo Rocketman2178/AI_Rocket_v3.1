@@ -1704,6 +1704,10 @@ export const GoogleDriveSettings: React.FC<GoogleDriveSettingsProps> = ({ fromLa
         existingMeetingsIds={connection?.meetings_folder_id ? [connection.meetings_folder_id] : []}
         existingFinancialIds={connection?.financial_folder_id ? [connection.financial_folder_id] : []}
         existingProjectsIds={connection?.projects_folder_id ? [connection.projects_folder_id] : []}
+        existingStrategyName={connection?.strategy_folder_name || undefined}
+        existingMeetingsName={connection?.meetings_folder_name || undefined}
+        existingFinancialName={connection?.financial_folder_name || undefined}
+        existingProjectsName={connection?.projects_folder_name || undefined}
       />
     </div>
   );

@@ -28,6 +28,10 @@ interface AstraGuidedSetupModalProps {
   existingMeetingsIds?: string[];
   existingFinancialIds?: string[];
   existingProjectsIds?: string[];
+  existingStrategyName?: string;
+  existingMeetingsName?: string;
+  existingFinancialName?: string;
+  existingProjectsName?: string;
 }
 
 interface StepContent {
@@ -181,7 +185,11 @@ export function AstraGuidedSetupModal({
   existingStrategyIds = [],
   existingMeetingsIds = [],
   existingFinancialIds = [],
-  existingProjectsIds = []
+  existingProjectsIds = [],
+  existingStrategyName,
+  existingMeetingsName,
+  existingFinancialName,
+  existingProjectsName
 }: AstraGuidedSetupModalProps) {
   const { user } = useAuth();
   const [currentStep, setCurrentStep] = useState(0);
@@ -313,6 +321,36 @@ export function AstraGuidedSetupModal({
     const folderType = currentStepContent.folderType;
     const key = `${folderType}_folders_selected` as keyof SetupProgress;
     return progress[key] as string[];
+  };
+
+  const getExistingFolderName = (folderType: string): string | undefined => {
+    switch (folderType) {
+      case 'strategy': return existingStrategyName;
+      case 'meetings': return existingMeetingsName;
+      case 'financial': return existingFinancialName;
+      case 'projects': return existingProjectsName;
+      default: return undefined;
+    }
+  };
+
+  const getCurrentFolderName = (): string | null => {
+    const currentSelection = getCurrentFolderSelection();
+    if (currentSelection.length === 0) return null;
+
+    const folderId = currentSelection[0];
+    const folderFromList = folders.find(f => f.id === folderId);
+    if (folderFromList) return folderFromList.name;
+
+    const existingName = getExistingFolderName(currentStepContent.folderType);
+    return existingName || null;
+  };
+
+  const getFolderNameById = (folderId: string, folderType: string): string | null => {
+    const folderFromList = folders.find(f => f.id === folderId);
+    if (folderFromList) return folderFromList.name;
+
+    const existingName = getExistingFolderName(folderType);
+    return existingName || null;
   };
 
   const handleNext = async () => {
@@ -582,12 +620,9 @@ export function AstraGuidedSetupModal({
 
                   {/* Current Selection Banner */}
                   {(() => {
-                    const currentSelection = getCurrentFolderSelection();
-                    const selectedFolder = currentSelection.length > 0
-                      ? folders.find(f => f.id === currentSelection[0])
-                      : null;
+                    const folderName = getCurrentFolderName();
 
-                    return selectedFolder ? (
+                    return folderName ? (
                       <div className="mb-4 p-4 bg-gradient-to-r from-green-500/20 to-blue-500/20 border-2 border-green-500/50 rounded-lg">
                         <div className="flex items-start gap-3">
                           <div className="w-10 h-10 rounded-lg bg-green-500/30 border border-green-500 flex items-center justify-center flex-shrink-0">
@@ -595,10 +630,10 @@ export function AstraGuidedSetupModal({
                           </div>
                           <div className="flex-1">
                             <p className="text-xs font-semibold text-green-400 uppercase tracking-wide mb-1">
-                              ✓ Currently Connected Folder
+                              Currently Connected Folder
                             </p>
                             <p className="text-white font-semibold text-sm">
-                              {selectedFolder.name}
+                              {folderName}
                             </p>
                             <p className="text-gray-400 text-xs mt-1">
                               This folder is actively syncing. You can change your selection below or keep this folder.
@@ -609,7 +644,7 @@ export function AstraGuidedSetupModal({
                     ) : (
                       <div className="mb-4 p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg">
                         <p className="text-sm text-blue-300">
-                          💡 Select a folder below to sync your {currentStepContent.title.toLowerCase()}
+                          Select a folder below to sync your {currentStepContent.title.toLowerCase()}
                         </p>
                       </div>
                     );
@@ -702,11 +737,11 @@ export function AstraGuidedSetupModal({
                     {progress.strategy_folders_selected.length > 0 ? (
                       <div className="space-y-1">
                         {progress.strategy_folders_selected.map(id => {
-                          const folder = folders.find(f => f.id === id);
-                          return folder ? (
+                          const folderName = getFolderNameById(id, 'strategy');
+                          return folderName ? (
                             <div key={id} className="text-sm text-gray-400 flex items-center gap-2">
                               <Check className="w-4 h-4 text-green-500" />
-                              {folder.name}
+                              {folderName}
                             </div>
                           ) : null;
                         })}
@@ -723,11 +758,11 @@ export function AstraGuidedSetupModal({
                     {progress.meetings_folders_selected.length > 0 ? (
                       <div className="space-y-1">
                         {progress.meetings_folders_selected.map(id => {
-                          const folder = folders.find(f => f.id === id);
-                          return folder ? (
+                          const folderName = getFolderNameById(id, 'meetings');
+                          return folderName ? (
                             <div key={id} className="text-sm text-gray-400 flex items-center gap-2">
                               <Check className="w-4 h-4 text-green-500" />
-                              {folder.name}
+                              {folderName}
                             </div>
                           ) : null;
                         })}
@@ -744,11 +779,11 @@ export function AstraGuidedSetupModal({
                     {progress.projects_folders_selected.length > 0 ? (
                       <div className="space-y-1">
                         {progress.projects_folders_selected.map(id => {
-                          const folder = folders.find(f => f.id === id);
-                          return folder ? (
+                          const folderName = getFolderNameById(id, 'projects');
+                          return folderName ? (
                             <div key={id} className="text-sm text-gray-400 flex items-center gap-2">
                               <Check className="w-4 h-4 text-green-500" />
-                              {folder.name}
+                              {folderName}
                             </div>
                           ) : null;
                         })}
@@ -765,11 +800,11 @@ export function AstraGuidedSetupModal({
                     {progress.financial_folders_selected.length > 0 ? (
                       <div className="space-y-1">
                         {progress.financial_folders_selected.map(id => {
-                          const folder = folders.find(f => f.id === id);
-                          return folder ? (
+                          const folderName = getFolderNameById(id, 'financial');
+                          return folderName ? (
                             <div key={id} className="text-sm text-gray-400 flex items-center gap-2">
                               <Check className="w-4 h-4 text-green-500" />
-                              {folder.name}
+                              {folderName}
                             </div>
                           ) : null;
                         })}
@@ -781,7 +816,7 @@ export function AstraGuidedSetupModal({
 
                   <div className="mt-6 p-4 bg-green-500/10 border border-green-500/30 rounded-lg">
                     <p className="text-sm text-green-300 font-medium">
-                      🚀 Ready to sync! Click "Complete Setup" to start syncing your data.
+                      Ready to sync! Click "Complete Setup" to start syncing your data.
                     </p>
                   </div>
                 </div>
