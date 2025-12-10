@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FolderPlus, CheckCircle, Loader2, AlertCircle } from 'lucide-react';
+import { FolderPlus, CheckCircle, Loader2, AlertCircle, Search, Folder } from 'lucide-react';
 import { getGoogleDriveConnection } from '../../lib/google-drive-oauth';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
@@ -17,19 +17,25 @@ interface FolderSelection {
   alreadyConnected: boolean;
 }
 
+interface GoogleDriveFolder {
+  id: string;
+  name: string;
+  createdTime?: string;
+}
+
 export const AddMoreFoldersStep: React.FC<AddMoreFoldersStepProps> = ({ onComplete, onBack }) => {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
-  const [accessToken, setAccessToken] = useState('');
   const [folders, setFolders] = useState<FolderSelection[]>([]);
-  const [pickerInited, setPickerInited] = useState(false);
-  const [gsiInited, setGsiInited] = useState(false);
+  const [driveFolders, setDriveFolders] = useState<GoogleDriveFolder[]>([]);
+  const [loadingDriveFolders, setLoadingDriveFolders] = useState(false);
+  const [activeFolderType, setActiveFolderType] = useState<'strategy' | 'meetings' | 'financial' | 'projects' | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     loadCurrentFolders();
-    initializeGooglePicker();
   }, []);
 
   const loadCurrentFolders = async () => {
@@ -44,9 +50,6 @@ export const AddMoreFoldersStep: React.FC<AddMoreFoldersStepProps> = ({ onComple
         return;
       }
 
-      setAccessToken(connection.access_token);
-
-      // Get current folder connections
       const folderTypes: FolderSelection[] = [
         {
           type: 'strategy',
@@ -87,56 +90,62 @@ export const AddMoreFoldersStep: React.FC<AddMoreFoldersStepProps> = ({ onComple
     }
   };
 
-  const initializeGooglePicker = () => {
-    // Load Google Picker API
-    const script = document.createElement('script');
-    script.src = 'https://apis.google.com/js/api.js';
-    script.onload = () => {
-      window.gapi.load('picker', () => {
-        setPickerInited(true);
-      });
-    };
-    document.body.appendChild(script);
+  const loadDriveFolders = async () => {
+    try {
+      setLoadingDriveFolders(true);
+      setError('');
 
-    // Load GSI for token
-    const gsiScript = document.createElement('script');
-    gsiScript.src = 'https://accounts.google.com/gsi/client';
-    gsiScript.onload = () => {
-      setGsiInited(true);
-    };
-    document.body.appendChild(gsiScript);
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        setError('Not authenticated');
+        return;
+      }
+
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/list-google-drive-folders`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`,
+            'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to load folders');
+      }
+
+      const data = await response.json();
+      setDriveFolders(data.folders || []);
+    } catch (err: any) {
+      console.error('Error loading drive folders:', err);
+      setError(err.message || 'Failed to load Google Drive folders');
+    } finally {
+      setLoadingDriveFolders(false);
+    }
   };
 
-  const openFolderPicker = (folderType: FolderSelection) => {
-    if (!pickerInited || !accessToken) {
-      setError('Google Picker not ready. Please try again.');
-      return;
+  const openFolderSelector = async (folderType: 'strategy' | 'meetings' | 'financial' | 'projects') => {
+    setActiveFolderType(folderType);
+    setSearchQuery('');
+    if (driveFolders.length === 0) {
+      await loadDriveFolders();
     }
-
-    const picker = new window.google.picker.PickerBuilder()
-      .addView(
-        new window.google.picker.DocsView(window.google.picker.ViewId.FOLDERS)
-          .setSelectFolderEnabled(true)
-      )
-      .setOAuthToken(accessToken)
-      .setCallback((data: any) => handlePickerCallback(data, folderType))
-      .setTitle(`Select ${folderType.label} Folder`)
-      .build();
-
-    picker.setVisible(true);
   };
 
-  const handlePickerCallback = async (data: any, folderType: FolderSelection) => {
-    if (data.action === window.google.picker.Action.PICKED) {
-      const folder = data.docs[0];
+  const handleSelectFolder = (folder: GoogleDriveFolder) => {
+    if (!activeFolderType) return;
 
-      // Update the folder in state
-      setFolders(prev => prev.map(f =>
-        f.type === folderType.type
-          ? { ...f, id: folder.id, name: folder.name, alreadyConnected: false }
-          : f
-      ));
-    }
+    setFolders(prev => prev.map(f =>
+      f.type === activeFolderType
+        ? { ...f, id: folder.id, name: folder.name, alreadyConnected: false }
+        : f
+    ));
+    setActiveFolderType(null);
+    setSearchQuery('');
   };
 
   const handleSaveFolders = async () => {
@@ -146,14 +155,12 @@ export const AddMoreFoldersStep: React.FC<AddMoreFoldersStepProps> = ({ onComple
       setSaving(true);
       setError('');
 
-      // Get user's session token
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         setError('Not authenticated');
         return;
       }
 
-      // Get newly selected folders
       const newFolders = folders.filter(f => f.id && !f.alreadyConnected);
 
       if (newFolders.length === 0) {
@@ -162,7 +169,6 @@ export const AddMoreFoldersStep: React.FC<AddMoreFoldersStepProps> = ({ onComple
         return;
       }
 
-      // Call the edge function for each new folder
       for (const folder of newFolders) {
         const response = await fetch(
           `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/save-folder-selection`,
@@ -186,7 +192,6 @@ export const AddMoreFoldersStep: React.FC<AddMoreFoldersStepProps> = ({ onComple
         }
       }
 
-      // Success - proceed to next step with the new folder types
       const newFolderTypesArray = newFolders.map(f => f.type);
       onComplete(newFolderTypesArray);
     } catch (err: any) {
@@ -211,6 +216,10 @@ export const AddMoreFoldersStep: React.FC<AddMoreFoldersStepProps> = ({ onComple
   const newlySelectedFolders = folders.filter(f => f.id && !f.alreadyConnected);
   const canProceed = newlySelectedFolders.length > 0;
 
+  const filteredDriveFolders = driveFolders.filter(f =>
+    f.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   return (
     <div className="space-y-6">
       <div className="text-center">
@@ -230,88 +239,149 @@ export const AddMoreFoldersStep: React.FC<AddMoreFoldersStepProps> = ({ onComple
         </div>
       )}
 
-      {/* Folder Selection Grid */}
-      <div className="space-y-3">
-        {folders.map((folder) => (
-          <div
-            key={folder.type}
-            className={`bg-gray-800/50 border rounded-lg p-4 ${
-              folder.alreadyConnected
-                ? 'border-green-700/50 opacity-60'
-                : folder.id
-                ? 'border-purple-500'
-                : 'border-gray-700'
-            }`}
-          >
-            <div className="flex items-center justify-between">
-              <div className="flex-1">
-                <div className="flex items-center space-x-2 mb-1">
-                  <h3 className="text-lg font-semibold text-white">{folder.label}</h3>
-                  {folder.alreadyConnected && (
-                    <CheckCircle className="w-5 h-5 text-green-400" />
-                  )}
-                </div>
-                <p className="text-sm text-gray-400">
-                  {folder.alreadyConnected
-                    ? `📁 ${folder.name} (Already connected)`
-                    : folder.id
-                    ? `📁 ${folder.name} (Selected)`
-                    : 'Not connected yet'}
-                </p>
+      {activeFolderType ? (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-semibold text-white">
+              Select {folders.find(f => f.type === activeFolderType)?.label} Folder
+            </h3>
+            <button
+              onClick={() => {
+                setActiveFolderType(null);
+                setSearchQuery('');
+              }}
+              className="text-gray-400 hover:text-white transition-colors px-3 py-1"
+            >
+              Cancel
+            </button>
+          </div>
+
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search folders..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-10 pr-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+            />
+          </div>
+
+          {loadingDriveFolders ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="w-8 h-8 text-purple-400 animate-spin" />
+            </div>
+          ) : filteredDriveFolders.length === 0 ? (
+            <div className="text-center py-12">
+              <p className="text-gray-400">
+                {searchQuery ? `No folders found matching "${searchQuery}"` : 'No folders found in your Google Drive'}
+              </p>
+            </div>
+          ) : (
+            <div className="bg-gray-800 rounded-lg max-h-[300px] overflow-y-auto">
+              <div className="space-y-1 p-2">
+                {filteredDriveFolders.map((folder) => (
+                  <button
+                    key={folder.id}
+                    onClick={() => handleSelectFolder(folder)}
+                    className="w-full flex items-center space-x-3 p-3 hover:bg-gray-700 rounded-lg transition-all text-left group"
+                  >
+                    <Folder className="w-5 h-5 text-purple-400 flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-white font-medium truncate">{folder.name}</p>
+                      {folder.createdTime && (
+                        <p className="text-xs text-gray-400">
+                          Created {new Date(folder.createdTime).toLocaleDateString()}
+                        </p>
+                      )}
+                    </div>
+                  </button>
+                ))}
               </div>
-              <button
-                onClick={() => openFolderPicker(folder)}
-                disabled={folder.alreadyConnected}
-                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+            </div>
+          )}
+        </div>
+      ) : (
+        <>
+          <div className="space-y-3">
+            {folders.map((folder) => (
+              <div
+                key={folder.type}
+                className={`bg-gray-800/50 border rounded-lg p-4 ${
                   folder.alreadyConnected
-                    ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
-                    : 'bg-purple-600 hover:bg-purple-700 text-white'
+                    ? 'border-green-700/50 opacity-60'
+                    : folder.id
+                    ? 'border-purple-500'
+                    : 'border-gray-700'
                 }`}
               >
-                {folder.id && !folder.alreadyConnected ? 'Change' : 'Select'}
-              </button>
-            </div>
+                <div className="flex items-center justify-between">
+                  <div className="flex-1">
+                    <div className="flex items-center space-x-2 mb-1">
+                      <h3 className="text-lg font-semibold text-white">{folder.label}</h3>
+                      {folder.alreadyConnected && (
+                        <CheckCircle className="w-5 h-5 text-green-400" />
+                      )}
+                    </div>
+                    <p className="text-sm text-gray-400">
+                      {folder.alreadyConnected
+                        ? `${folder.name} (Already connected)`
+                        : folder.id
+                        ? `${folder.name} (Selected)`
+                        : 'Not connected yet'}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => openFolderSelector(folder.type)}
+                    disabled={folder.alreadyConnected}
+                    className={`px-4 py-2 rounded-lg font-medium transition-colors min-h-[44px] ${
+                      folder.alreadyConnected
+                        ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
+                        : 'bg-purple-600 hover:bg-purple-700 text-white'
+                    }`}
+                  >
+                    {folder.id && !folder.alreadyConnected ? 'Change' : 'Select'}
+                  </button>
+                </div>
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
 
-      {/* Info Box */}
-      <div className="bg-blue-900/20 border border-blue-700 rounded-lg p-4">
-        <p className="text-sm text-blue-300">
-          <span className="font-medium">💡 Tip:</span> You can select folders for any category you haven't connected yet. More folders = more fuel!
-        </p>
-      </div>
+          <div className="bg-blue-900/20 border border-blue-700 rounded-lg p-4">
+            <p className="text-sm text-blue-300">
+              <span className="font-medium">Tip:</span> You can select folders for any category you haven't connected yet. More folders = more fuel!
+            </p>
+          </div>
 
-      {/* Action Buttons */}
-      <div className="flex space-x-3">
-        <button
-          onClick={onBack}
-          className="flex-1 px-6 py-3 bg-gray-700 hover:bg-gray-600 text-white rounded-lg font-medium transition-colors"
-        >
-          Back
-        </button>
-        <button
-          onClick={handleSaveFolders}
-          disabled={!canProceed || saving}
-          className="flex-1 px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white rounded-lg font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
-        >
-          {saving ? (
-            <>
-              <Loader2 className="w-5 h-5 animate-spin" />
-              <span>Saving...</span>
-            </>
-          ) : (
-            <>
-              <span>Continue to Sync</span>
-            </>
+          <div className="flex space-x-3">
+            <button
+              onClick={onBack}
+              className="flex-1 px-6 py-3 bg-gray-700 hover:bg-gray-600 text-white rounded-lg font-medium transition-colors min-h-[44px]"
+            >
+              Back
+            </button>
+            <button
+              onClick={handleSaveFolders}
+              disabled={!canProceed || saving}
+              className="flex-1 px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white rounded-lg font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2 min-h-[44px]"
+            >
+              {saving ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  <span>Saving...</span>
+                </>
+              ) : (
+                <span>Continue to Sync</span>
+              )}
+            </button>
+          </div>
+
+          {!canProceed && !error && (
+            <p className="text-center text-sm text-gray-400">
+              Select at least one new folder to continue
+            </p>
           )}
-        </button>
-      </div>
-
-      {!canProceed && !error && (
-        <p className="text-center text-sm text-gray-400">
-          Select at least one new folder to continue
-        </p>
+        </>
       )}
     </div>
   );
