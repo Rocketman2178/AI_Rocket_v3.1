@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { FolderPlus, CheckCircle, Loader2, AlertCircle, Search, Folder } from 'lucide-react';
-import { getGoogleDriveConnection } from '../../lib/google-drive-oauth';
+import { FolderPlus, CheckCircle, Loader2, AlertCircle, Search, Folder, Link } from 'lucide-react';
+import { getGoogleDriveConnection, initiateGoogleDriveOAuth } from '../../lib/google-drive-oauth';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -33,6 +33,8 @@ export const AddMoreFoldersStep: React.FC<AddMoreFoldersStepProps> = ({ onComple
   const [loadingDriveFolders, setLoadingDriveFolders] = useState(false);
   const [activeFolderType, setActiveFolderType] = useState<'strategy' | 'meetings' | 'financial' | 'projects' | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [needsReconnect, setNeedsReconnect] = useState(false);
+  const [connecting, setConnecting] = useState(false);
 
   useEffect(() => {
     loadCurrentFolders();
@@ -43,10 +45,12 @@ export const AddMoreFoldersStep: React.FC<AddMoreFoldersStepProps> = ({ onComple
 
     try {
       setLoading(true);
+      setNeedsReconnect(false);
       const connection = await getGoogleDriveConnection();
 
       if (!connection) {
-        setError('Not authenticated with Google Drive');
+        setNeedsReconnect(true);
+        setLoading(false);
         return;
       }
 
@@ -202,12 +206,66 @@ export const AddMoreFoldersStep: React.FC<AddMoreFoldersStepProps> = ({ onComple
     }
   };
 
+  const handleReconnect = () => {
+    setConnecting(true);
+    sessionStorage.setItem('reopen_fuel_stage', 'true');
+    initiateGoogleDriveOAuth(false, true);
+  };
+
   if (loading) {
     return (
       <div className="space-y-6">
         <div className="text-center py-12">
           <Loader2 className="w-8 h-8 text-purple-400 animate-spin mx-auto mb-4" />
           <p className="text-gray-300">Loading your folders...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (needsReconnect) {
+    return (
+      <div className="space-y-6">
+        <div className="text-center">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-orange-600/20 mb-4">
+            <Link className="w-8 h-8 text-orange-400" />
+          </div>
+          <h2 className="text-2xl font-bold text-white mb-3">Connect Google Drive</h2>
+          <p className="text-gray-300">
+            Connect your Google Drive to select folders and add more fuel to your AI
+          </p>
+        </div>
+
+        <div className="bg-orange-900/20 border border-orange-700 rounded-lg p-4">
+          <p className="text-sm text-orange-300">
+            Your Google Drive is not currently connected. Click below to authenticate and gain access to your folders.
+          </p>
+        </div>
+
+        <div className="flex space-x-3">
+          <button
+            onClick={onBack}
+            className="flex-1 px-6 py-3 bg-gray-700 hover:bg-gray-600 text-white rounded-lg font-medium transition-colors min-h-[44px]"
+          >
+            Back
+          </button>
+          <button
+            onClick={handleReconnect}
+            disabled={connecting}
+            className="flex-1 px-6 py-3 bg-gradient-to-r from-orange-600 to-orange-700 hover:from-orange-700 hover:to-orange-800 text-white rounded-lg font-medium transition-all flex items-center justify-center space-x-2 min-h-[44px] disabled:opacity-50"
+          >
+            {connecting ? (
+              <>
+                <Loader2 className="w-5 h-5 animate-spin" />
+                <span>Connecting...</span>
+              </>
+            ) : (
+              <>
+                <Link className="w-5 h-5" />
+                <span>Connect Google Drive</span>
+              </>
+            )}
+          </button>
         </div>
       </div>
     );

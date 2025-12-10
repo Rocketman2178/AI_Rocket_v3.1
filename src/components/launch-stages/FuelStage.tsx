@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Fuel, CheckCircle, ArrowRight, Loader, FileText, Folder, Database, HardDrive, Rocket, Info, HelpCircle } from 'lucide-react';
+import { X, Fuel, CheckCircle, ArrowRight, Loader, FileText, Folder, Database, HardDrive, Rocket, Info, HelpCircle, RefreshCw } from 'lucide-react';
 import { StageProgress } from '../../hooks/useLaunchPreparation';
 import { useLaunchPreparation } from '../../hooks/useLaunchPreparation';
 import { useDocumentCounts } from '../../hooks/useDocumentCounts';
@@ -14,6 +14,7 @@ import { AddMoreFoldersStep } from '../setup-steps/AddMoreFoldersStep';
 import { ConnectedFoldersStatus } from '../ConnectedFoldersStatus';
 import { StageProgressBar } from './StageProgressBar';
 import { supabase } from '../../lib/supabase';
+import { syncAllFolders } from '../../lib/manual-folder-sync';
 
 interface FuelStageProps {
   progress: StageProgress | null;
@@ -40,6 +41,8 @@ export const FuelStage: React.FC<FuelStageProps> = ({ progress, fuelProgress, bo
   const [checkingDrive, setCheckingDrive] = useState(true);
   const [userClosedModal, setUserClosedModal] = useState(false);
   const [showLevelInfoModal, setShowLevelInfoModal] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  const [syncMessage, setSyncMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   const currentLevel = progress?.level || 0;
   const targetLevel = currentLevel + 1;
@@ -246,6 +249,51 @@ export const FuelStage: React.FC<FuelStageProps> = ({ progress, fuelProgress, bo
     }
   };
 
+  const handleSyncDocuments = async () => {
+    if (!user || syncing) return;
+
+    const teamId = user.user_metadata?.team_id;
+    if (!teamId) {
+      setSyncMessage({ type: 'error', text: 'No team found' });
+      return;
+    }
+
+    setSyncing(true);
+    setSyncMessage(null);
+
+    try {
+      const result = await syncAllFolders({
+        teamId,
+        userId: user.id,
+        folderTypes: ['strategy', 'meetings', 'financial', 'projects'],
+      });
+
+      if (result.success) {
+        setSyncMessage({ type: 'success', text: 'Sync started! New documents will appear shortly.' });
+        // Refresh counts after a short delay
+        setTimeout(async () => {
+          await refreshCounts();
+          if (onRefresh) {
+            await onRefresh();
+          }
+        }, 3000);
+      } else {
+        setSyncMessage({ type: 'error', text: 'Some folders failed to sync. Check your connection.' });
+      }
+    } catch (error) {
+      console.error('Sync error:', error);
+      if (error instanceof Error && error.message === 'GOOGLE_TOKEN_EXPIRED') {
+        setSyncMessage({ type: 'error', text: 'Google Drive connection expired. Please reconnect.' });
+      } else {
+        setSyncMessage({ type: 'error', text: 'Failed to sync. Please try again.' });
+      }
+    } finally {
+      setSyncing(false);
+      // Clear success message after 5 seconds
+      setTimeout(() => setSyncMessage(null), 5000);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
       {/* Compact Progress Bar at Top */}
@@ -290,7 +338,7 @@ export const FuelStage: React.FC<FuelStageProps> = ({ progress, fuelProgress, bo
         </div>
 
         {/* Compact Data Status */}
-        <div className="grid grid-cols-4 gap-3 mb-4">
+        <div className="grid grid-cols-4 gap-3 mb-3">
           <div className="bg-gray-800/50 border border-gray-700 rounded-lg p-3 text-center">
             <p className="text-xs text-gray-400 mb-1">Strategy</p>
             <p className="text-xl font-bold text-white">{counts.strategy}</p>
@@ -308,6 +356,29 @@ export const FuelStage: React.FC<FuelStageProps> = ({ progress, fuelProgress, bo
             <p className="text-xl font-bold text-white">{counts.projects}</p>
           </div>
         </div>
+
+        {/* Sync Documents Button - Show when Drive is connected */}
+        {hasGoogleDrive && (
+          <div className="mb-4">
+            <button
+              onClick={handleSyncDocuments}
+              disabled={syncing}
+              className="w-full bg-gray-700/50 hover:bg-gray-700 border border-gray-600 text-white py-2.5 px-4 rounded-lg transition-colors flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} />
+              <span className="text-sm font-medium">
+                {syncing ? 'Syncing...' : 'Sync Documents'}
+              </span>
+            </button>
+            {syncMessage && (
+              <p className={`text-xs mt-2 text-center ${
+                syncMessage.type === 'success' ? 'text-green-400' : 'text-red-400'
+              }`}>
+                {syncMessage.text}
+              </p>
+            )}
+          </div>
+        )}
 
         {/* Compact Level Progress */}
         <div className="bg-gray-800/50 border border-gray-700 rounded-lg p-4 mb-4">
