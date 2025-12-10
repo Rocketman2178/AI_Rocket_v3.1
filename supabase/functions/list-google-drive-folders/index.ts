@@ -81,46 +81,71 @@ Deno.serve(async (req: Request) => {
 
     console.log("[list-google-drive-folders] Found connection for Google account:", connection.google_account_email);
 
-    // Fetch ONLY folders from Google Drive
-    // Using explicit mimeType filter for folders only
-    // Excludes shortcuts (application/vnd.google-apps.shortcut) and all file types
-    const driveUrl = "https://www.googleapis.com/drive/v3/files?" + new URLSearchParams({
-      q: "mimeType = 'application/vnd.google-apps.folder' and trashed = false",
-      fields: "files(id,name,mimeType,createdTime)",
-      orderBy: "name",
-      pageSize: "1000"
-    }).toString();
+    // Fetch ALL folders from Google Drive with pagination
+    // Including shared drives and folders shared with the user
+    const allItems: any[] = [];
+    let pageToken: string | null = null;
+    let pageCount = 0;
+    const maxPages = 20; // Safety limit to prevent infinite loops
 
-    console.log("[list-google-drive-folders] Calling Google Drive API for account:", connection.google_account_email);
+    do {
+      const params: Record<string, string> = {
+        q: "mimeType = 'application/vnd.google-apps.folder' and trashed = false",
+        fields: "nextPageToken,files(id,name,mimeType,createdTime)",
+        orderBy: "name",
+        pageSize: "1000",
+        supportsAllDrives: "true",
+        includeItemsFromAllDrives: "true"
+      };
 
-    const response = await fetch(driveUrl, {
-      headers: {
-        Authorization: `Bearer ${connection.access_token}`,
-      },
-    });
+      if (pageToken) {
+        params.pageToken = pageToken;
+      }
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("[list-google-drive-folders] Google Drive API error:", response.status, errorText);
+      const driveUrl = "https://www.googleapis.com/drive/v3/files?" + new URLSearchParams(params).toString();
 
-      if (response.status === 401) {
-        return new Response(JSON.stringify({ 
-          error: "Google Drive token expired. Please reconnect.",
-          googleAccount: connection.google_account_email
-        }), {
-          status: 401,
+      console.log(`[list-google-drive-folders] Fetching page ${pageCount + 1} for account:`, connection.google_account_email);
+
+      const response = await fetch(driveUrl, {
+        headers: {
+          Authorization: `Bearer ${connection.access_token}`,
+        },
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("[list-google-drive-folders] Google Drive API error:", response.status, errorText);
+
+        if (response.status === 401) {
+          return new Response(JSON.stringify({
+            error: "Google Drive token expired. Please reconnect.",
+            googleAccount: connection.google_account_email
+          }), {
+            status: 401,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        return new Response(JSON.stringify({ error: "Failed to fetch folders from Google Drive" }), {
+          status: response.status,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
 
-      return new Response(JSON.stringify({ error: "Failed to fetch folders from Google Drive" }), {
-        status: response.status,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+      const data = await response.json();
+      const pageItems = data.files || [];
+      allItems.push(...pageItems);
 
-    const data = await response.json();
-    const allItems = data.files || [];
+      pageToken = data.nextPageToken || null;
+      pageCount++;
+
+      console.log(`[list-google-drive-folders] Page ${pageCount}: fetched ${pageItems.length} folders, total so far: ${allItems.length}`);
+
+    } while (pageToken && pageCount < maxPages);
+
+    if (pageToken) {
+      console.warn(`[list-google-drive-folders] Stopped at page limit (${maxPages}), may have more folders`);
+    }
     
     // Double-filter to ensure ONLY folders are returned (belt and suspenders)
     const folders = allItems.filter((item: any) => 

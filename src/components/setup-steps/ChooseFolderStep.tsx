@@ -247,8 +247,8 @@ export const ChooseFolderStep: React.FC<ChooseFolderStepProps> = ({ onComplete, 
     return (
       <div className="space-y-6">
         <div className="text-center">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-purple-600/20 mb-4">
-            <FolderPlus className="w-8 h-8 text-purple-400 animate-pulse" />
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-orange-600/20 mb-4">
+            <FolderPlus className="w-8 h-8 text-orange-400 animate-pulse" />
           </div>
           <h2 className="text-2xl font-bold text-white mb-3">Choose Your Folder</h2>
           <p className="text-gray-300">Checking your connected folders...</p>
@@ -295,7 +295,7 @@ export const ChooseFolderStep: React.FC<ChooseFolderStepProps> = ({ onComplete, 
                 onComplete({ existingFolder: true });
               }
             }}
-            className="px-8 py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white rounded-lg font-medium transition-all min-h-[44px]"
+            className="px-8 py-3 bg-gradient-to-r from-orange-600 to-orange-700 hover:from-orange-700 hover:to-orange-800 text-white rounded-lg font-medium transition-all min-h-[44px]"
           >
             Next: Place Your Files →
           </button>
@@ -309,8 +309,8 @@ export const ChooseFolderStep: React.FC<ChooseFolderStepProps> = ({ onComplete, 
     return (
       <div className="space-y-6">
         <div className="text-center">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-purple-600/20 mb-4">
-            <FolderPlus className="w-8 h-8 text-purple-400" />
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-orange-600/20 mb-4">
+            <FolderPlus className="w-8 h-8 text-orange-400" />
           </div>
           <h2 className="text-2xl font-bold text-white mb-3">Choose Your Strategy Folder</h2>
           <p className="text-gray-300">
@@ -328,10 +328,10 @@ export const ChooseFolderStep: React.FC<ChooseFolderStepProps> = ({ onComplete, 
           {/* Select Existing Folder Option */}
           <button
             onClick={loadFolders}
-            className="bg-gray-800 hover:bg-gray-700 border-2 border-gray-700 hover:border-purple-500 rounded-lg p-6 transition-all text-left group min-h-[200px] flex flex-col items-center justify-center"
+            className="bg-gray-800 hover:bg-gray-700 border-2 border-gray-700 hover:border-orange-500 rounded-lg p-6 transition-all text-left group min-h-[200px] flex flex-col items-center justify-center"
           >
-            <div className="w-16 h-16 rounded-full bg-purple-600/20 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-              <FolderOpen className="w-8 h-8 text-purple-400" />
+            <div className="w-16 h-16 rounded-full bg-orange-600/20 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+              <FolderOpen className="w-8 h-8 text-orange-400" />
             </div>
             <h3 className="text-lg font-semibold text-white mb-2 text-center">
               Select Existing Folder
@@ -379,8 +379,8 @@ export const ChooseFolderStep: React.FC<ChooseFolderStepProps> = ({ onComplete, 
       return (
         <div className="space-y-6">
           <div className="text-center">
-            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-purple-600/20 mb-4">
-              <Folder className="w-8 h-8 text-purple-400" />
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-orange-600/20 mb-4">
+              <Folder className="w-8 h-8 text-orange-400" />
             </div>
             <h2 className="text-2xl font-bold text-white mb-3">Choose Your Strategy Folder</h2>
             <p className="text-gray-300 mb-2">
@@ -424,8 +424,8 @@ export const ChooseFolderStep: React.FC<ChooseFolderStepProps> = ({ onComplete, 
     return (
       <div className="space-y-6">
         <div className="text-center">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-purple-600/20 mb-4">
-            <Folder className="w-8 h-8 text-purple-400" />
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-orange-600/20 mb-4">
+            <Folder className="w-8 h-8 text-orange-400" />
           </div>
           <h2 className="text-2xl font-bold text-white mb-3">Select a Folder</h2>
           <p className="text-gray-300">
@@ -441,7 +441,7 @@ export const ChooseFolderStep: React.FC<ChooseFolderStepProps> = ({ onComplete, 
 
         {loading ? (
           <div className="flex items-center justify-center py-12">
-            <Loader2 className="w-8 h-8 text-purple-400 animate-spin" />
+            <Loader2 className="w-8 h-8 text-orange-400 animate-spin" />
           </div>
         ) : (
           <>
@@ -454,7 +454,7 @@ export const ChooseFolderStep: React.FC<ChooseFolderStepProps> = ({ onComplete, 
                   placeholder="Search folders..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  className="w-full pl-10 pr-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                 />
               </div>
             </div>
@@ -482,9 +482,9 @@ export const ChooseFolderStep: React.FC<ChooseFolderStepProps> = ({ onComplete, 
                     key={folder.id}
                     onClick={() => handleSelectFolder(folder)}
                     disabled={loading}
-                    className="w-full flex items-center space-x-3 p-4 bg-gray-900/50 hover:bg-gray-700 border border-gray-700 hover:border-purple-500 rounded-lg transition-all text-left group disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full flex items-center space-x-3 p-4 bg-gray-900/50 hover:bg-gray-700 border border-gray-700 hover:border-orange-500 rounded-lg transition-all text-left group disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    <Folder className="w-6 h-6 text-purple-400 flex-shrink-0" />
+                    <Folder className="w-6 h-6 text-orange-400 flex-shrink-0" />
                     <div className="flex-1 min-w-0">
                       <p className="text-white font-medium truncate">{folder.name}</p>
                       {folder.createdTime && (
@@ -494,7 +494,7 @@ export const ChooseFolderStep: React.FC<ChooseFolderStepProps> = ({ onComplete, 
                       )}
                     </div>
                     {loading && selectedFolder?.id === folder.id && (
-                      <Loader2 className="w-5 h-5 text-purple-400 animate-spin flex-shrink-0" />
+                      <Loader2 className="w-5 h-5 text-orange-400 animate-spin flex-shrink-0" />
                     )}
                   </button>
                   ))}

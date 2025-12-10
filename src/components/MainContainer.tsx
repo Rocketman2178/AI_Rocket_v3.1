@@ -77,6 +77,16 @@ export const MainContainer: React.FC<MainContainerProps> = ({ onOpenAdminDashboa
 
       console.log('🔍 [MainContainer] Starting onboarding check for user:', user.id);
 
+      // FIRST: Check if user just completed Launch Preparation - always show Welcome + Tour
+      // This must be checked BEFORE any other logic to avoid race conditions
+      const showWelcomeAfterLaunch = sessionStorage.getItem('show_welcome_after_launch');
+      if (showWelcomeAfterLaunch === 'true') {
+        console.log('🚀 [MainContainer] User completed Launch Prep - showing Welcome + Tour');
+        sessionStorage.removeItem('show_welcome_after_launch');
+        setShowWelcomeModal(true);
+        return; // Exit early - show welcome regardless of other settings
+      }
+
       // CRITICAL FIX: Get team_id from database, not metadata (metadata may not be fresh)
       const { data: userData } = await supabase
         .from('users')
@@ -132,17 +142,6 @@ export const MainContainer: React.FC<MainContainerProps> = ({ onOpenAdminDashboa
         }
         // Don't show any setup modals - Launch Prep handles this
         return;
-      }
-
-      // Check if we should open Guided Setup from URL parameter
-      // ONLY for team creators who are NOT in Launch Preparation
-      // Check if user just completed Launch Preparation - always show Welcome + Tour
-      const showWelcomeAfterLaunch = sessionStorage.getItem('show_welcome_after_launch');
-      if (showWelcomeAfterLaunch === 'true') {
-        console.log('🚀 [MainContainer] User completed Launch Prep - showing Welcome + Tour');
-        sessionStorage.removeItem('show_welcome_after_launch');
-        setShowWelcomeModal(true);
-        return; // Exit early - show welcome regardless of other settings
       }
 
       const urlParams = new URLSearchParams(window.location.search);

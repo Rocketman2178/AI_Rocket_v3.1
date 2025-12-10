@@ -108,11 +108,9 @@ export const AddMoreFoldersStep: React.FC<AddMoreFoldersStepProps> = ({ onComple
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/list-google-drive-folders`,
         {
-          method: 'POST',
+          method: 'GET',
           headers: {
             'Authorization': `Bearer ${session.access_token}`,
-            'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
-            'Content-Type': 'application/json',
           },
         }
       );
@@ -135,9 +133,7 @@ export const AddMoreFoldersStep: React.FC<AddMoreFoldersStepProps> = ({ onComple
   const openFolderSelector = async (folderType: 'strategy' | 'meetings' | 'financial' | 'projects') => {
     setActiveFolderType(folderType);
     setSearchQuery('');
-    if (driveFolders.length === 0) {
-      await loadDriveFolders();
-    }
+    await loadDriveFolders();
   };
 
   const handleSelectFolder = (folder: GoogleDriveFolder) => {
@@ -216,7 +212,7 @@ export const AddMoreFoldersStep: React.FC<AddMoreFoldersStepProps> = ({ onComple
     return (
       <div className="space-y-6">
         <div className="text-center py-12">
-          <Loader2 className="w-8 h-8 text-purple-400 animate-spin mx-auto mb-4" />
+          <Loader2 className="w-8 h-8 text-orange-400 animate-spin mx-auto mb-4" />
           <p className="text-gray-300">Loading your folders...</p>
         </div>
       </div>
@@ -281,8 +277,8 @@ export const AddMoreFoldersStep: React.FC<AddMoreFoldersStepProps> = ({ onComple
   return (
     <div className="space-y-6">
       <div className="text-center">
-        <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-purple-600/20 mb-4">
-          <FolderPlus className="w-8 h-8 text-purple-400" />
+        <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-orange-600/20 mb-4">
+          <FolderPlus className="w-8 h-8 text-orange-400" />
         </div>
         <h2 className="text-2xl font-bold text-white mb-3">Connect More Folders</h2>
         <p className="text-gray-300">
@@ -321,13 +317,13 @@ export const AddMoreFoldersStep: React.FC<AddMoreFoldersStepProps> = ({ onComple
               placeholder="Search folders..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+              className="w-full pl-10 pr-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
             />
           </div>
 
           {loadingDriveFolders ? (
             <div className="flex items-center justify-center py-12">
-              <Loader2 className="w-8 h-8 text-purple-400 animate-spin" />
+              <Loader2 className="w-8 h-8 text-orange-400 animate-spin" />
             </div>
           ) : filteredDriveFolders.length === 0 ? (
             <div className="text-center py-12">
@@ -344,7 +340,7 @@ export const AddMoreFoldersStep: React.FC<AddMoreFoldersStepProps> = ({ onComple
                     onClick={() => handleSelectFolder(folder)}
                     className="w-full flex items-center space-x-3 p-3 hover:bg-gray-700 rounded-lg transition-all text-left group"
                   >
-                    <Folder className="w-5 h-5 text-purple-400 flex-shrink-0" />
+                    <Folder className="w-5 h-5 text-orange-400 flex-shrink-0" />
                     <div className="flex-1 min-w-0">
                       <p className="text-white font-medium truncate">{folder.name}</p>
                       {folder.createdTime && (
@@ -369,7 +365,7 @@ export const AddMoreFoldersStep: React.FC<AddMoreFoldersStepProps> = ({ onComple
                   folder.alreadyConnected
                     ? 'border-green-700/50 opacity-60'
                     : folder.id
-                    ? 'border-purple-500'
+                    ? 'border-orange-500'
                     : 'border-gray-700'
                 }`}
               >
@@ -395,7 +391,7 @@ export const AddMoreFoldersStep: React.FC<AddMoreFoldersStepProps> = ({ onComple
                     className={`px-4 py-2 rounded-lg font-medium transition-colors min-h-[44px] ${
                       folder.alreadyConnected
                         ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
-                        : 'bg-purple-600 hover:bg-purple-700 text-white'
+                        : 'bg-orange-600 hover:bg-orange-700 text-white'
                     }`}
                   >
                     {folder.id && !folder.alreadyConnected ? 'Change' : 'Select'}
@@ -421,7 +417,7 @@ export const AddMoreFoldersStep: React.FC<AddMoreFoldersStepProps> = ({ onComple
             <button
               onClick={handleSaveFolders}
               disabled={!canProceed || saving}
-              className="flex-1 px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white rounded-lg font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2 min-h-[44px]"
+              className="flex-1 px-6 py-3 bg-gradient-to-r from-orange-600 to-orange-700 hover:from-orange-700 hover:to-orange-800 text-white rounded-lg font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2 min-h-[44px]"
             >
               {saving ? (
                 <>

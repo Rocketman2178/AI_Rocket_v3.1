@@ -67,9 +67,9 @@ export const ConnectDriveStep: React.FC<ConnectDriveStepProps> = ({ onComplete, 
                 <div className="text-2xl mb-1">📄</div>
                 <div className="text-xs text-blue-200">Read Docs</div>
               </div>
-              <div className="bg-purple-950/50 rounded-lg p-3 text-center">
+              <div className="bg-orange-950/50 rounded-lg p-3 text-center">
                 <div className="text-2xl mb-1">📁</div>
-                <div className="text-xs text-purple-200">Create Folders</div>
+                <div className="text-xs text-orange-200">Create Folders</div>
               </div>
               <div className="bg-green-950/50 rounded-lg p-3 text-center">
                 <div className="text-2xl mb-1">📋</div>
@@ -110,7 +110,7 @@ export const ConnectDriveStep: React.FC<ConnectDriveStepProps> = ({ onComplete, 
           <div className="flex justify-center pt-2">
             <button
               onClick={onComplete}
-              className="px-8 py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white rounded-lg font-medium transition-all min-h-[44px]"
+              className="px-8 py-3 bg-gradient-to-r from-orange-600 to-orange-700 hover:from-orange-700 hover:to-orange-800 text-white rounded-lg font-medium transition-all min-h-[44px]"
             >
               Next: Choose Folder →
             </button>

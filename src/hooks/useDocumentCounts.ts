@@ -2,12 +2,26 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 
+export interface DocumentInfo {
+  id: string;
+  title: string;
+  folder_type: string;
+  created_at: string;
+}
+
 export interface DocumentCounts {
   strategy: number;
   meetings: number;
   financial: number;
   projects: number;
   total: number;
+}
+
+export interface DocumentsByType {
+  strategy: DocumentInfo[];
+  meetings: DocumentInfo[];
+  financial: DocumentInfo[];
+  projects: DocumentInfo[];
 }
 
 export function useDocumentCounts() {
@@ -18,6 +32,12 @@ export function useDocumentCounts() {
     financial: 0,
     projects: 0,
     total: 0
+  });
+  const [documents, setDocuments] = useState<DocumentsByType>({
+    strategy: [],
+    meetings: [],
+    financial: [],
+    projects: []
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -47,26 +67,33 @@ export function useDocumentCounts() {
       // Use the documents table which has one row per unique document (much simpler!)
       const { data: allDocs, error: docsError } = await supabase
         .from('documents')
-        .select('source_id, folder_type')
-        .eq('team_id', teamId);
+        .select('id, source_id, folder_type, title, created_at')
+        .eq('team_id', teamId)
+        .order('created_at', { ascending: false });
 
       if (docsError) throw docsError;
 
-      // Count documents by folder type
-      const uniqueStrategy = allDocs?.filter(d => d.folder_type === 'strategy').length || 0;
-      const uniqueMeetings = allDocs?.filter(d => d.folder_type === 'meetings').length || 0;
-      const uniqueFinancial = allDocs?.filter(d => d.folder_type === 'financial').length || 0;
-      const uniqueProjects = allDocs?.filter(d => d.folder_type === 'projects').length || 0;
+      // Organize documents by folder type
+      const strategyDocs = allDocs?.filter(d => d.folder_type === 'strategy') || [];
+      const meetingsDocs = allDocs?.filter(d => d.folder_type === 'meetings') || [];
+      const financialDocs = allDocs?.filter(d => d.folder_type === 'financial') || [];
+      const projectsDocs = allDocs?.filter(d => d.folder_type === 'projects') || [];
 
       const newCounts = {
-        strategy: uniqueStrategy,
-        meetings: uniqueMeetings,
-        financial: uniqueFinancial,
-        projects: uniqueProjects,
-        total: uniqueStrategy + uniqueMeetings + uniqueFinancial + uniqueProjects
+        strategy: strategyDocs.length,
+        meetings: meetingsDocs.length,
+        financial: financialDocs.length,
+        projects: projectsDocs.length,
+        total: strategyDocs.length + meetingsDocs.length + financialDocs.length + projectsDocs.length
       };
 
       setCounts(newCounts);
+      setDocuments({
+        strategy: strategyDocs.map(d => ({ id: d.id, title: d.title || 'Untitled', folder_type: d.folder_type, created_at: d.created_at })),
+        meetings: meetingsDocs.map(d => ({ id: d.id, title: d.title || 'Untitled', folder_type: d.folder_type, created_at: d.created_at })),
+        financial: financialDocs.map(d => ({ id: d.id, title: d.title || 'Untitled', folder_type: d.folder_type, created_at: d.created_at })),
+        projects: projectsDocs.map(d => ({ id: d.id, title: d.title || 'Untitled', folder_type: d.folder_type, created_at: d.created_at }))
+      });
       setError(null);
     } catch (err) {
       console.error('Error fetching document counts:', err);
@@ -202,6 +229,7 @@ export function useDocumentCounts() {
 
   return {
     counts,
+    documents,
     loading,
     error,
     calculateFuelLevel,

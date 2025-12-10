@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Fuel, CheckCircle, ArrowRight, Loader, FileText, Folder, Database, HardDrive, Rocket, Info, HelpCircle, RefreshCw } from 'lucide-react';
+import { X, Fuel, CheckCircle, ArrowRight, Loader, FileText, Folder, Database, HardDrive, Rocket, Info, HelpCircle, RefreshCw, ChevronDown, ChevronUp } from 'lucide-react';
 import { StageProgress } from '../../hooks/useLaunchPreparation';
 import { useLaunchPreparation } from '../../hooks/useLaunchPreparation';
 import { useDocumentCounts } from '../../hooks/useDocumentCounts';
@@ -14,7 +14,7 @@ import { AddMoreFoldersStep } from '../setup-steps/AddMoreFoldersStep';
 import { ConnectedFoldersStatus } from '../ConnectedFoldersStatus';
 import { StageProgressBar } from './StageProgressBar';
 import { supabase } from '../../lib/supabase';
-import { syncAllFolders } from '../../lib/manual-folder-sync';
+import { triggerIncrementalSync } from '../../lib/manual-folder-sync';
 
 interface FuelStageProps {
   progress: StageProgress | null;
@@ -31,7 +31,8 @@ interface FuelStageProps {
 export const FuelStage: React.FC<FuelStageProps> = ({ progress, fuelProgress, boostersProgress, guidanceProgress, onBack, onNavigateToStage, onComplete, onRefresh, onOpenHelpCenter }) => {
   const { user } = useAuth();
   const { updateStageLevel, completeAchievement, awardPoints } = useLaunchPreparation();
-  const { counts, loading: countsLoading, calculateFuelLevel, meetsLevelRequirements, refresh: refreshCounts } = useDocumentCounts();
+  const { counts, documents, loading: countsLoading, calculateFuelLevel, meetsLevelRequirements, refresh: refreshCounts } = useDocumentCounts();
+  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
   const [showDriveFlow, setShowDriveFlow] = useState(false);
   const [driveFlowStep, setDriveFlowStep] = useState<'status' | 'connect' | 'choose-folder' | 'add-more-folders' | 'place-files' | 'sync-data'>('status');
   const [folderData, setFolderData] = useState<any>(null);
@@ -252,44 +253,33 @@ export const FuelStage: React.FC<FuelStageProps> = ({ progress, fuelProgress, bo
   const handleSyncDocuments = async () => {
     if (!user || syncing) return;
 
-    const teamId = user.user_metadata?.team_id;
-    if (!teamId) {
-      setSyncMessage({ type: 'error', text: 'No team found' });
-      return;
-    }
-
     setSyncing(true);
     setSyncMessage(null);
 
     try {
-      const result = await syncAllFolders({
-        teamId,
-        userId: user.id,
-        folderTypes: ['strategy', 'meetings', 'financial', 'projects'],
-      });
+      const result = await triggerIncrementalSync();
 
       if (result.success) {
-        setSyncMessage({ type: 'success', text: 'Sync started! New documents will appear shortly.' });
-        // Refresh counts after a short delay
+        setSyncMessage({ type: 'success', text: 'Syncing new documents...' });
+
         setTimeout(async () => {
           await refreshCounts();
           if (onRefresh) {
             await onRefresh();
           }
-        }, 3000);
+          setSyncing(false);
+          setSyncMessage({ type: 'success', text: 'Sync complete! Documents updated.' });
+          setTimeout(() => setSyncMessage(null), 3000);
+        }, 10000);
       } else {
-        setSyncMessage({ type: 'error', text: 'Some folders failed to sync. Check your connection.' });
+        setSyncing(false);
+        setSyncMessage({ type: 'error', text: result.message || 'Failed to start sync.' });
+        setTimeout(() => setSyncMessage(null), 5000);
       }
     } catch (error) {
       console.error('Sync error:', error);
-      if (error instanceof Error && error.message === 'GOOGLE_TOKEN_EXPIRED') {
-        setSyncMessage({ type: 'error', text: 'Google Drive connection expired. Please reconnect.' });
-      } else {
-        setSyncMessage({ type: 'error', text: 'Failed to sync. Please try again.' });
-      }
-    } finally {
       setSyncing(false);
-      // Clear success message after 5 seconds
+      setSyncMessage({ type: 'error', text: 'Failed to sync. Please try again.' });
       setTimeout(() => setSyncMessage(null), 5000);
     }
   };
@@ -337,55 +327,82 @@ export const FuelStage: React.FC<FuelStageProps> = ({ progress, fuelProgress, bo
           </div>
         </div>
 
-        {/* Compact Data Status */}
-        <div className="grid grid-cols-4 gap-3 mb-3">
-          <div className="bg-gray-800/50 border border-gray-700 rounded-lg p-3 text-center">
-            <p className="text-xs text-gray-400 mb-1">Strategy</p>
-            <p className="text-xl font-bold text-white">{counts.strategy}</p>
+        {/* Synced Documents Section */}
+        <div className="mb-4">
+          <div className="flex items-center justify-between mb-2">
+            <h2 className="text-sm font-semibold text-gray-300">Synced Documents</h2>
+            {hasGoogleDrive && (
+              <button
+                onClick={handleSyncDocuments}
+                disabled={syncing}
+                className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded-lg transition-colors flex items-center gap-1.5 disabled:opacity-50"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${syncing ? 'animate-spin' : ''}`} />
+                {syncing ? 'Syncing...' : 'Sync Now'}
+              </button>
+            )}
           </div>
-          <div className="bg-gray-800/50 border border-gray-700 rounded-lg p-3 text-center">
-            <p className="text-xs text-gray-400 mb-1">Meetings</p>
-            <p className="text-xl font-bold text-white">{counts.meetings}</p>
-          </div>
-          <div className="bg-gray-800/50 border border-gray-700 rounded-lg p-3 text-center">
-            <p className="text-xs text-gray-400 mb-1">Financial</p>
-            <p className="text-xl font-bold text-white">{counts.financial}</p>
-          </div>
-          <div className="bg-gray-800/50 border border-gray-700 rounded-lg p-3 text-center">
-            <p className="text-xs text-gray-400 mb-1">Projects</p>
-            <p className="text-xl font-bold text-white">{counts.projects}</p>
+          {syncMessage && (
+            <p className={`text-xs mb-2 ${
+              syncMessage.type === 'success' ? 'text-green-400' : 'text-red-400'
+            }`}>
+              {syncMessage.text}
+            </p>
+          )}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {(['strategy', 'meetings', 'financial', 'projects'] as const).map((type) => {
+              const typeLabels = { strategy: 'Strategy', meetings: 'Meetings', financial: 'Financial', projects: 'Projects' };
+              const count = counts[type];
+              const docs = documents[type];
+              const isExpanded = expandedSections[type];
+
+              return (
+                <div key={type} className="bg-gray-800/50 border border-gray-700 rounded-lg overflow-hidden">
+                  <button
+                    onClick={() => count > 0 && setExpandedSections(prev => ({ ...prev, [type]: !prev[type] }))}
+                    className={`w-full p-3 text-center ${count > 0 ? 'cursor-pointer hover:bg-gray-700/50' : 'cursor-default'} transition-colors`}
+                    disabled={count === 0}
+                  >
+                    <p className="text-xs text-gray-400 mb-1">{typeLabels[type]}</p>
+                    <div className="flex items-center justify-center gap-1">
+                      <p className="text-xl font-bold text-white">{count}</p>
+                      {count > 0 && (
+                        isExpanded ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />
+                      )}
+                    </div>
+                  </button>
+                  {isExpanded && docs.length > 0 && (
+                    <div className="border-t border-gray-700 max-h-[200px] overflow-y-auto bg-gray-900/50">
+                      {docs.slice(0, 10).map((doc) => (
+                        <div key={doc.id} className="px-3 py-2 border-b border-gray-700/50 last:border-b-0 hover:bg-gray-800/50">
+                          <p className="text-xs text-white truncate" title={doc.title}>
+                            {doc.title}
+                          </p>
+                          <p className="text-[10px] text-gray-500">
+                            {new Date(doc.created_at).toLocaleDateString()}
+                          </p>
+                        </div>
+                      ))}
+                      {docs.length > 10 && (
+                        <div className="px-3 py-2 text-center bg-gray-800/30">
+                          <p className="text-xs text-gray-400">+{docs.length - 10} more</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
 
-        {/* Sync Documents Button - Show when Drive is connected */}
-        {hasGoogleDrive && (
-          <div className="mb-4">
-            <button
-              onClick={handleSyncDocuments}
-              disabled={syncing}
-              className="w-full bg-gray-700/50 hover:bg-gray-700 border border-gray-600 text-white py-2.5 px-4 rounded-lg transition-colors flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} />
-              <span className="text-sm font-medium">
-                {syncing ? 'Syncing...' : 'Sync Documents'}
-              </span>
-            </button>
-            {syncMessage && (
-              <p className={`text-xs mt-2 text-center ${
-                syncMessage.type === 'success' ? 'text-green-400' : 'text-red-400'
-              }`}>
-                {syncMessage.text}
-              </p>
-            )}
-          </div>
-        )}
 
         {/* Compact Level Progress */}
         <div className="bg-gray-800/50 border border-gray-700 rounded-lg p-4 mb-4">
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-lg font-bold text-white flex items-center">
               <LevelIcon className="w-5 h-5 mr-2 text-orange-400" />
-              {currentLevel === 0 ? 'Get Started' : `Level ${currentLevel}: ${currentLevelInfo.name}`}
+              {currentLevel === 0 ? 'Get Started' : `Current Stage: Level ${currentLevel}`}
             </h2>
             <button
               onClick={() => setShowLevelInfoModal(true)}
@@ -402,7 +419,7 @@ export const FuelStage: React.FC<FuelStageProps> = ({ progress, fuelProgress, bo
               </p>
               {hasGoogleDrive ? (
                 <div className="bg-blue-900/20 border border-blue-700 rounded-lg p-3 text-sm text-blue-300">
-                  <p className="mb-1">✅ Google Drive is connected!</p>
+                  <p className="mb-1">Google Drive is connected!</p>
                   <p>Now add at least 1 document to any of your connected folders to reach Level 1.</p>
                 </div>
               ) : (
@@ -422,7 +439,7 @@ export const FuelStage: React.FC<FuelStageProps> = ({ progress, fuelProgress, bo
             <div className="border-t border-gray-700 pt-3">
               <div className="flex items-center justify-between mb-2">
                 <h3 className="text-sm font-semibold text-white">
-                  Next: Level {targetLevel}
+                  Next: Level {targetLevel} Goal
                 </h3>
                 <span className="text-xs text-yellow-400 font-medium">
                   +{formatPoints(targetLevelInfo.points)}
@@ -436,14 +453,23 @@ export const FuelStage: React.FC<FuelStageProps> = ({ progress, fuelProgress, bo
                   // Check if requirement is met
                   if (req.includes('1 document')) {
                     isMet = counts.total >= 1;
-                  } else if (req.includes('1 strategy') && req.includes('1 project') && req.includes('1 meeting') && req.includes('1 financial')) {
-                    isMet = counts.strategy >= 1 && counts.projects >= 1 && counts.meetings >= 1 && counts.financial >= 1;
-                  } else if (req.includes('3 strategy') && req.includes('3 project')) {
-                    isMet = counts.strategy >= 3 && counts.projects >= 3 && counts.meetings >= 10 && counts.financial >= 3;
-                  } else if (req.includes('10 strategy') && req.includes('10 project') && req.includes('50 meetings')) {
-                    isMet = counts.strategy >= 10 && counts.projects >= 10 && counts.meetings >= 50 && counts.financial >= 10;
-                  } else if (req.includes('100 meetings') && req.includes('10 project')) {
-                    isMet = counts.strategy >= 10 && counts.projects >= 10 && counts.meetings >= 100 && counts.financial >= 10;
+                  } else if (req.toLowerCase().includes('strategy')) {
+                    if (req.includes('10')) isMet = counts.strategy >= 10;
+                    else if (req.includes('3')) isMet = counts.strategy >= 3;
+                    else if (req.includes('1')) isMet = counts.strategy >= 1;
+                  } else if (req.toLowerCase().includes('meeting')) {
+                    if (req.includes('100')) isMet = counts.meetings >= 100;
+                    else if (req.includes('50')) isMet = counts.meetings >= 50;
+                    else if (req.includes('10')) isMet = counts.meetings >= 10;
+                    else if (req.includes('1')) isMet = counts.meetings >= 1;
+                  } else if (req.toLowerCase().includes('financial')) {
+                    if (req.includes('10')) isMet = counts.financial >= 10;
+                    else if (req.includes('3')) isMet = counts.financial >= 3;
+                    else if (req.includes('1')) isMet = counts.financial >= 1;
+                  } else if (req.toLowerCase().includes('project')) {
+                    if (req.includes('10')) isMet = counts.projects >= 10;
+                    else if (req.includes('3')) isMet = counts.projects >= 3;
+                    else if (req.includes('1')) isMet = counts.projects >= 1;
                   }
 
                   return (
