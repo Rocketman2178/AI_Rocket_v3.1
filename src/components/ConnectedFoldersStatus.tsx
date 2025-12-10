@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Folder, CheckCircle, Loader2, FolderPlus, FileText, Edit2, X } from 'lucide-react';
+import { Folder, CheckCircle, Loader2, FolderPlus, FileText, Edit2, X, Search, FolderOpen } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import { GoogleDriveFolderPicker } from './GoogleDriveFolderPicker';
 import { FolderInfo as GoogleFolderInfo, getGoogleDriveConnection, updateFolderConfiguration } from '../lib/google-drive-oauth';
 
 interface ConnectedFoldersStatusProps {
@@ -26,6 +25,9 @@ export const ConnectedFoldersStatus: React.FC<ConnectedFoldersStatusProps> = ({ 
   const [changingFolder, setChangingFolder] = useState<'strategy' | 'meetings' | 'financial' | 'projects' | null>(null);
   const [accessToken, setAccessToken] = useState<string>('');
   const [savingChange, setSavingChange] = useState(false);
+  const [availableFolders, setAvailableFolders] = useState<{ id: string; name: string }[]>([]);
+  const [loadingFolders, setLoadingFolders] = useState(false);
+  const [folderSearchTerm, setFolderSearchTerm] = useState('');
 
   useEffect(() => {
     loadFolderStatus();
@@ -122,18 +124,41 @@ export const ConnectedFoldersStatus: React.FC<ConnectedFoldersStatusProps> = ({ 
 
   const handleChangeFolder = async (folderType: 'strategy' | 'meetings' | 'financial' | 'projects') => {
     try {
-      // Get access token from connection
-      const connection = await getGoogleDriveConnection();
-      if (!connection || !connection.access_token) {
-        setError('No valid Google Drive connection found');
+      setChangingFolder(folderType);
+      setLoadingFolders(true);
+      setFolderSearchTerm('');
+      setAvailableFolders([]);
+
+      // Fetch folders from edge function
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        setError('No active session');
+        setChangingFolder(null);
         return;
       }
 
-      setAccessToken(connection.access_token);
-      setChangingFolder(folderType);
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/list-google-drive-folders`,
+        {
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch folders');
+      }
+
+      const data = await response.json();
+      setAvailableFolders(data.folders || []);
     } catch (err) {
-      console.error('Error getting access token:', err);
-      setError('Failed to get Drive access');
+      console.error('Error loading folders:', err);
+      setError('Failed to load folders from Google Drive');
+      setChangingFolder(null);
+    } finally {
+      setLoadingFolders(false);
     }
   };
 
@@ -337,18 +362,86 @@ export const ConnectedFoldersStatus: React.FC<ConnectedFoldersStatusProps> = ({ 
                   <Loader2 className="w-8 h-8 text-blue-400 animate-spin mx-auto mb-4" />
                   <p className="text-gray-300">Updating folder...</p>
                 </div>
+              ) : loadingFolders ? (
+                <div className="text-center py-12">
+                  <Loader2 className="w-8 h-8 text-blue-400 animate-spin mx-auto mb-4" />
+                  <p className="text-gray-300">Loading folders from Google Drive...</p>
+                </div>
               ) : (
                 <div className="space-y-4">
                   <p className="text-sm text-gray-300">
                     Select a new folder from your Google Drive to replace the current {changingFolder} folder.
                   </p>
-                  <GoogleDriveFolderPicker
-                    accessToken={accessToken}
-                    folderType={changingFolder}
-                    currentFolder={null}
-                    onFolderSelected={handleFolderSelected}
-                    allowCreateNew={false}
-                  />
+
+                  {/* Search Input */}
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <input
+                      type="text"
+                      placeholder="Search folders..."
+                      value={folderSearchTerm}
+                      onChange={(e) => setFolderSearchTerm(e.target.value)}
+                      className="w-full pl-10 pr-4 py-2.5 bg-gray-700/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 focus:outline-none transition-all"
+                    />
+                    {folderSearchTerm && (
+                      <button
+                        onClick={() => setFolderSearchTerm('')}
+                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Folder List */}
+                  <div className="max-h-[400px] overflow-y-auto bg-gray-700/30 border border-gray-600 rounded-lg">
+                    {availableFolders.length === 0 ? (
+                      <p className="text-gray-400 text-sm text-center py-8">
+                        No folders available
+                      </p>
+                    ) : (
+                      availableFolders
+                        .filter(f => f.name.toLowerCase().includes(folderSearchTerm.toLowerCase()))
+                        .map((folder) => {
+                          const currentFolderData = folders.find(f => f.type === changingFolder);
+                          const isCurrentlyConnected = currentFolderData?.folderId === folder.id;
+
+                          return (
+                            <button
+                              key={folder.id}
+                              onClick={() => handleFolderSelected({ id: folder.id, name: folder.name })}
+                              disabled={isCurrentlyConnected}
+                              className={`w-full text-left px-4 py-3 text-sm transition-colors border-b border-gray-600/50 last:border-b-0 flex items-center justify-between ${
+                                isCurrentlyConnected
+                                  ? 'bg-green-600/20 text-green-300 cursor-not-allowed'
+                                  : 'text-white hover:bg-gray-700/50'
+                              }`}
+                            >
+                              <span className="flex items-center">
+                                <FolderOpen className="w-4 h-4 inline mr-2 flex-shrink-0" />
+                                <span className="truncate">{folder.name}</span>
+                              </span>
+                              {isCurrentlyConnected && (
+                                <span className="flex items-center text-xs text-green-400 ml-2 flex-shrink-0">
+                                  <CheckCircle className="w-4 h-4 mr-1" />
+                                  Current
+                                </span>
+                              )}
+                            </button>
+                          );
+                        })
+                    )}
+                    {availableFolders.length > 0 &&
+                      availableFolders.filter(f => f.name.toLowerCase().includes(folderSearchTerm.toLowerCase())).length === 0 && (
+                      <p className="text-gray-400 text-sm text-center py-8">
+                        No folders match "{folderSearchTerm}"
+                      </p>
+                    )}
+                  </div>
+
+                  <p className="text-xs text-gray-500">
+                    Select a folder to sync your {changingFolder} documents
+                  </p>
                 </div>
               )}
             </div>

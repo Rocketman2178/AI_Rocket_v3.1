@@ -231,10 +231,10 @@ export function AstraGuidedSetupModal({
           id: data.id,
           current_step: data.current_step,
           completed_steps: data.completed_steps || [],
-          strategy_folders_selected: data.strategy_folders_selected || existingStrategyIds,
-          meetings_folders_selected: data.meetings_folders_selected || existingMeetingsIds,
-          financial_folders_selected: data.financial_folders_selected || existingFinancialIds,
-          projects_folders_selected: data.projects_folders_selected || existingProjectsIds,
+          strategy_folders_selected: data.strategy_folders_selected?.length > 0 ? data.strategy_folders_selected : existingStrategyIds,
+          meetings_folders_selected: data.meetings_folders_selected?.length > 0 ? data.meetings_folders_selected : existingMeetingsIds,
+          financial_folders_selected: data.financial_folders_selected?.length > 0 ? data.financial_folders_selected : existingFinancialIds,
+          projects_folders_selected: data.projects_folders_selected?.length > 0 ? data.projects_folders_selected : existingProjectsIds,
           is_completed: data.is_completed
         });
         setCurrentStep(data.current_step);
