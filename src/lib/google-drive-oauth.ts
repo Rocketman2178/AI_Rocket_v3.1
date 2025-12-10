@@ -284,28 +284,32 @@ export const updateFolderConfiguration = async (folders: {
  * This can be used to populate a folder picker UI
  */
 export const listGoogleDriveFolders = async (): Promise<FolderInfo[]> => {
-  const connection = await getGoogleDriveConnection(true); // Auto-refresh if needed
-
-  if (!connection || !connection.is_active) {
-    throw new Error('Google Drive is not connected');
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) {
+    throw new Error('Not authenticated');
   }
 
-  // Use Google Drive API to list folders
+  // Use the edge function to fetch folders
   const response = await fetch(
-    'https://www.googleapis.com/drive/v3/files?q=mimeType="application/vnd.google-apps.folder"&fields=files(id,name)&pageSize=100',
+    `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/list-google-drive-folders`,
     {
+      method: 'GET',
       headers: {
-        'Authorization': `Bearer ${connection.access_token}`
+        'Authorization': `Bearer ${session.access_token}`,
+        'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+        'Content-Type': 'application/json',
       }
     }
   );
 
   if (!response.ok) {
+    const errorText = await response.text();
+    console.error('Failed to list folders:', errorText);
     throw new Error('Failed to list Google Drive folders');
   }
 
   const data = await response.json();
-  return data.files || [];
+  return data.folders || [];
 };
 
 /**

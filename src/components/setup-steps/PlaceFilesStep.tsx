@@ -185,7 +185,7 @@ export const PlaceFilesStep: React.FC<PlaceFilesStepProps> = ({ onComplete, fold
           </h4>
 
           <div className="grid grid-cols-2 gap-2">
-            {/* Supported */}
+            {/* Supported - Google Native */}
             <div className="bg-green-900/20 border border-green-700 rounded-lg p-2 flex items-center gap-2">
               <CheckCircle2 className="w-4 h-4 text-green-400 flex-shrink-0" />
               <span className="text-lg">📄</span>
@@ -197,36 +197,51 @@ export const PlaceFilesStep: React.FC<PlaceFilesStepProps> = ({ onComplete, fold
               <span className="text-xs text-white font-medium">Google Sheets</span>
             </div>
 
-            {/* Not Supported */}
-            <div className="bg-red-900/20 border border-red-700 rounded-lg p-2 flex items-center gap-2 opacity-60">
-              <X className="w-4 h-4 text-red-400 flex-shrink-0" />
-              <span className="text-lg">📕</span>
-              <span className="text-xs text-gray-400 font-medium">PDF Files</span>
-            </div>
-            <div className="bg-red-900/20 border border-red-700 rounded-lg p-2 flex items-center gap-2 opacity-60">
-              <X className="w-4 h-4 text-red-400 flex-shrink-0" />
+            {/* Supported - Microsoft Office */}
+            <div className="bg-green-900/20 border border-green-700 rounded-lg p-2 flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-green-400 flex-shrink-0" />
               <span className="text-lg">📝</span>
-              <span className="text-xs text-gray-400 font-medium">Word/Excel</span>
+              <span className="text-xs text-white font-medium">Word (DOC/DOCX)</span>
+            </div>
+            <div className="bg-green-900/20 border border-green-700 rounded-lg p-2 flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-green-400 flex-shrink-0" />
+              <span className="text-lg">📗</span>
+              <span className="text-xs text-white font-medium">Excel (XLS/XLSX)</span>
+            </div>
+
+            {/* Supported - Other Formats */}
+            <div className="bg-green-900/20 border border-green-700 rounded-lg p-2 flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-green-400 flex-shrink-0" />
+              <span className="text-lg">📕</span>
+              <span className="text-xs text-white font-medium">PDF Files</span>
+            </div>
+            <div className="bg-green-900/20 border border-green-700 rounded-lg p-2 flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-green-400 flex-shrink-0" />
+              <span className="text-lg">📊</span>
+              <span className="text-xs text-white font-medium">CSV Files</span>
+            </div>
+
+            <div className="bg-green-900/20 border border-green-700 rounded-lg p-2 flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-green-400 flex-shrink-0" />
+              <span className="text-lg">📄</span>
+              <span className="text-xs text-white font-medium">TXT/Markdown</span>
+            </div>
+            <div className="bg-green-900/20 border border-green-700 rounded-lg p-2 flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-green-400 flex-shrink-0" />
+              <span className="text-lg">📽️</span>
+              <span className="text-xs text-white font-medium">PowerPoint (PPT/PPTX)</span>
             </div>
           </div>
 
           <div className="bg-blue-900/20 border border-blue-600 rounded-lg p-2 mt-3">
             <p className="text-xs text-blue-200">
-              <span className="font-medium">💡 Tip:</span> Convert other file types to Google Docs/Sheets in Drive
+              <span className="font-medium">✨ New:</span> We now support PDF, Word, Excel, PowerPoint, CSV, and TXT files directly!
             </p>
           </div>
 
-          <button
-            onClick={() => setShowConversionModal(true)}
-            className="w-full bg-gray-900/50 hover:bg-gray-800/70 border border-gray-600 hover:border-blue-500 rounded-lg p-2 mt-2 transition-colors flex items-center justify-center gap-2"
-          >
-            <Info className="w-4 h-4 text-blue-400" />
-            <span className="text-xs text-gray-300 font-medium">How to Convert Files to Google Docs/Sheets</span>
-          </button>
-
           <div className="bg-gray-900/50 border border-gray-600 rounded-lg p-2 mt-2">
             <p className="text-xs text-gray-400 text-center">
-              ℹ️ More file types may be supported in future updates
+              ℹ️ All major document formats are now supported
             </p>
           </div>
         </div>
@@ -259,58 +274,44 @@ export const PlaceFilesStep: React.FC<PlaceFilesStepProps> = ({ onComplete, fold
               <div className="p-4 space-y-4">
                 <div className="bg-blue-900/20 border border-blue-700 rounded-lg p-3">
                   <p className="text-sm text-blue-200">
-                    Converting file types to Google Docs for: PDF, Word, Excel, Text, etc.
+                    <span className="font-medium">✨ Great news!</span> We now support a wide range of file formats directly, so no conversion is needed.
                   </p>
                 </div>
 
                 <div className="space-y-3">
-                  <h4 className="text-white font-semibold text-sm">How to Convert:</h4>
+                  <h4 className="text-white font-semibold text-sm">Supported File Formats:</h4>
 
-                  <div className="space-y-3">
-                    <div className="flex gap-3">
-                      <div className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-600/20 flex items-center justify-center">
-                        <span className="text-xs text-blue-400 font-medium">1</span>
-                      </div>
-                      <div>
-                        <p className="text-sm text-gray-300">
-                          <span className="font-medium text-white">Locate the file</span> in your Google Drive.
-                        </p>
-                      </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="bg-gray-800 border border-gray-700 rounded-lg p-2">
+                      <p className="text-xs text-white font-medium">📄 Google Docs</p>
                     </div>
-
-                    <div className="flex gap-3">
-                      <div className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-600/20 flex items-center justify-center">
-                        <span className="text-xs text-blue-400 font-medium">2</span>
-                      </div>
-                      <div>
-                        <p className="text-sm text-gray-300">
-                          <span className="font-medium text-white">Right-click</span> on the file.
-                        </p>
-                      </div>
+                    <div className="bg-gray-800 border border-gray-700 rounded-lg p-2">
+                      <p className="text-xs text-white font-medium">📊 Google Sheets</p>
                     </div>
-
-                    <div className="flex gap-3">
-                      <div className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-600/20 flex items-center justify-center">
-                        <span className="text-xs text-blue-400 font-medium">3</span>
-                      </div>
-                      <div>
-                        <p className="text-sm text-gray-300">
-                          <span className="font-medium text-white">Hover over "Open with"</span> and select the suggested Google app (e.g., <span className="font-medium text-blue-400">Google Docs</span>, <span className="font-medium text-green-400">Google Sheets</span>, or <span className="font-medium text-orange-400">Google Slides</span>).
-                        </p>
-                      </div>
+                    <div className="bg-gray-800 border border-gray-700 rounded-lg p-2">
+                      <p className="text-xs text-white font-medium">📝 Word (DOC/DOCX)</p>
                     </div>
-
-                    <div className="bg-gray-800 border border-gray-700 rounded-lg p-3 mt-3">
-                      <p className="text-xs text-gray-300">
-                        Google will automatically convert the file into the corresponding Google format. It may take a moment to process, but once it opens, you will have the content available to edit.
-                      </p>
+                    <div className="bg-gray-800 border border-gray-700 rounded-lg p-2">
+                      <p className="text-xs text-white font-medium">📗 Excel (XLS/XLSX)</p>
+                    </div>
+                    <div className="bg-gray-800 border border-gray-700 rounded-lg p-2">
+                      <p className="text-xs text-white font-medium">📕 PDF Files</p>
+                    </div>
+                    <div className="bg-gray-800 border border-gray-700 rounded-lg p-2">
+                      <p className="text-xs text-white font-medium">📊 CSV Files</p>
+                    </div>
+                    <div className="bg-gray-800 border border-gray-700 rounded-lg p-2">
+                      <p className="text-xs text-white font-medium">📄 TXT/Markdown</p>
+                    </div>
+                    <div className="bg-gray-800 border border-gray-700 rounded-lg p-2">
+                      <p className="text-xs text-white font-medium">📽️ PowerPoint</p>
                     </div>
                   </div>
                 </div>
 
                 <div className="bg-green-900/20 border border-green-700 rounded-lg p-3">
                   <p className="text-xs text-green-300">
-                    <span className="font-medium">✓ Tip:</span> The converted file will be a new Google Doc/Sheet, and your original file remains unchanged.
+                    <span className="font-medium">✓ Tip:</span> Simply upload your files in any of these formats and we'll process them automatically!
                   </p>
                 </div>
 
@@ -377,78 +378,80 @@ export const PlaceFilesStep: React.FC<PlaceFilesStepProps> = ({ onComplete, fold
             Supported File Types
           </h4>
 
-          <div className="grid grid-cols-2 gap-3 mb-3">
-            {/* Supported Files */}
-            <div className="space-y-2">
-              <div className="bg-green-900/20 border border-green-700 rounded-lg p-2 flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-green-400 flex-shrink-0" />
-                <div className="flex items-center gap-2 flex-1">
-                  <span className="text-2xl">📄</span>
-                  <span className="text-xs text-white font-medium">Google Docs</span>
-                </div>
+          <div className="grid grid-cols-2 gap-2 mb-3">
+            {/* Supported Files - Google Native */}
+            <div className="bg-green-900/20 border border-green-700 rounded-lg p-2 flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-green-400 flex-shrink-0" />
+              <div className="flex items-center gap-2 flex-1">
+                <span className="text-2xl">📄</span>
+                <span className="text-xs text-white font-medium">Google Docs</span>
               </div>
-              <div className="bg-green-900/20 border border-green-700 rounded-lg p-2 flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-green-400 flex-shrink-0" />
-                <div className="flex items-center gap-2 flex-1">
-                  <span className="text-2xl">📊</span>
-                  <span className="text-xs text-white font-medium">Google Sheets</span>
-                </div>
+            </div>
+            <div className="bg-green-900/20 border border-green-700 rounded-lg p-2 flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-green-400 flex-shrink-0" />
+              <div className="flex items-center gap-2 flex-1">
+                <span className="text-2xl">📊</span>
+                <span className="text-xs text-white font-medium">Google Sheets</span>
               </div>
             </div>
 
-            {/* Unsupported Files */}
-            <div className="space-y-2">
-              <div className="bg-red-900/20 border border-red-700 rounded-lg p-2 flex items-center gap-2 opacity-60">
-                <X className="w-4 h-4 text-red-400 flex-shrink-0" />
-                <div className="flex items-center gap-2 flex-1">
-                  <span className="text-2xl">📕</span>
-                  <span className="text-xs text-gray-400 font-medium">PDF Files</span>
-                </div>
-              </div>
-              <div className="bg-red-900/20 border border-red-700 rounded-lg p-2 flex items-center gap-2 opacity-60">
-                <X className="w-4 h-4 text-red-400 flex-shrink-0" />
-                <div className="flex items-center gap-2 flex-1">
-                  <span className="text-2xl">📝</span>
-                  <span className="text-xs text-gray-400 font-medium">Word Docs</span>
-                </div>
+            {/* Supported Files - Microsoft Office */}
+            <div className="bg-green-900/20 border border-green-700 rounded-lg p-2 flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-green-400 flex-shrink-0" />
+              <div className="flex items-center gap-2 flex-1">
+                <span className="text-2xl">📝</span>
+                <span className="text-xs text-white font-medium">Word (DOC/DOCX)</span>
               </div>
             </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3 mb-3">
-            <div className="bg-red-900/20 border border-red-700 rounded-lg p-2 flex items-center gap-2 opacity-60">
-              <X className="w-4 h-4 text-red-400 flex-shrink-0" />
+            <div className="bg-green-900/20 border border-green-700 rounded-lg p-2 flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-green-400 flex-shrink-0" />
               <div className="flex items-center gap-2 flex-1">
                 <span className="text-2xl">📗</span>
-                <span className="text-xs text-gray-400 font-medium">Excel Files</span>
+                <span className="text-xs text-white font-medium">Excel (XLS/XLSX)</span>
               </div>
             </div>
-            <div className="bg-red-900/20 border border-red-700 rounded-lg p-2 flex items-center gap-2 opacity-60">
-              <X className="w-4 h-4 text-red-400 flex-shrink-0" />
+
+            {/* Supported Files - Other Formats */}
+            <div className="bg-green-900/20 border border-green-700 rounded-lg p-2 flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-green-400 flex-shrink-0" />
               <div className="flex items-center gap-2 flex-1">
-                <span className="text-2xl">📁</span>
-                <span className="text-xs text-gray-400 font-medium">Other Files</span>
+                <span className="text-2xl">📕</span>
+                <span className="text-xs text-white font-medium">PDF Files</span>
+              </div>
+            </div>
+            <div className="bg-green-900/20 border border-green-700 rounded-lg p-2 flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-green-400 flex-shrink-0" />
+              <div className="flex items-center gap-2 flex-1">
+                <span className="text-2xl">📊</span>
+                <span className="text-xs text-white font-medium">CSV Files</span>
+              </div>
+            </div>
+
+            <div className="bg-green-900/20 border border-green-700 rounded-lg p-2 flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-green-400 flex-shrink-0" />
+              <div className="flex items-center gap-2 flex-1">
+                <span className="text-2xl">📄</span>
+                <span className="text-xs text-white font-medium">TXT/Markdown</span>
+              </div>
+            </div>
+            <div className="bg-green-900/20 border border-green-700 rounded-lg p-2 flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-green-400 flex-shrink-0" />
+              <div className="flex items-center gap-2 flex-1">
+                <span className="text-2xl">📽️</span>
+                <span className="text-xs text-white font-medium">PowerPoint (PPT/PPTX)</span>
               </div>
             </div>
           </div>
 
           <div className="bg-blue-900/20 border border-blue-600 rounded-lg p-2">
             <p className="text-xs text-blue-200">
-              <span className="font-medium">💡 Tip:</span> Convert PDFs, Word docs, and Excel files to Google Docs/Sheets in your Drive
+              <span className="font-medium">✨ New:</span> We now support PDF, Word, Excel, PowerPoint, CSV, and TXT files directly!
             </p>
           </div>
 
-          <button
-            onClick={() => setShowConversionModal(true)}
-            className="w-full bg-gray-900/50 hover:bg-gray-800/70 border border-gray-600 hover:border-blue-500 rounded-lg p-2 mt-2 transition-colors flex items-center justify-center gap-2"
-          >
-            <Info className="w-4 h-4 text-blue-400" />
-            <span className="text-xs text-gray-300 font-medium">How to Convert Files to Google Docs/Sheets</span>
-          </button>
-
           <div className="bg-gray-900/50 border border-gray-600 rounded-lg p-2 mt-2">
             <p className="text-xs text-gray-400 text-center">
-              ℹ️ More file types may be supported in future updates
+              ℹ️ All major document formats are now supported
             </p>
           </div>
         </div>
@@ -488,58 +491,44 @@ export const PlaceFilesStep: React.FC<PlaceFilesStepProps> = ({ onComplete, fold
               <div className="p-4 space-y-4">
                 <div className="bg-blue-900/20 border border-blue-700 rounded-lg p-3">
                   <p className="text-sm text-blue-200">
-                    Converting file types to Google Docs for: PDF, Word, Excel, Text, etc.
+                    <span className="font-medium">✨ Great news!</span> We now support a wide range of file formats directly, so no conversion is needed.
                   </p>
                 </div>
 
                 <div className="space-y-3">
-                  <h4 className="text-white font-semibold text-sm">How to Convert:</h4>
+                  <h4 className="text-white font-semibold text-sm">Supported File Formats:</h4>
 
-                  <div className="space-y-3">
-                    <div className="flex gap-3">
-                      <div className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-600/20 flex items-center justify-center">
-                        <span className="text-xs text-blue-400 font-medium">1</span>
-                      </div>
-                      <div>
-                        <p className="text-sm text-gray-300">
-                          <span className="font-medium text-white">Locate the file</span> in your Google Drive.
-                        </p>
-                      </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="bg-gray-800 border border-gray-700 rounded-lg p-2">
+                      <p className="text-xs text-white font-medium">📄 Google Docs</p>
                     </div>
-
-                    <div className="flex gap-3">
-                      <div className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-600/20 flex items-center justify-center">
-                        <span className="text-xs text-blue-400 font-medium">2</span>
-                      </div>
-                      <div>
-                        <p className="text-sm text-gray-300">
-                          <span className="font-medium text-white">Right-click</span> on the file.
-                        </p>
-                      </div>
+                    <div className="bg-gray-800 border border-gray-700 rounded-lg p-2">
+                      <p className="text-xs text-white font-medium">📊 Google Sheets</p>
                     </div>
-
-                    <div className="flex gap-3">
-                      <div className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-600/20 flex items-center justify-center">
-                        <span className="text-xs text-blue-400 font-medium">3</span>
-                      </div>
-                      <div>
-                        <p className="text-sm text-gray-300">
-                          <span className="font-medium text-white">Hover over "Open with"</span> and select the suggested Google app (e.g., <span className="font-medium text-blue-400">Google Docs</span>, <span className="font-medium text-green-400">Google Sheets</span>, or <span className="font-medium text-orange-400">Google Slides</span>).
-                        </p>
-                      </div>
+                    <div className="bg-gray-800 border border-gray-700 rounded-lg p-2">
+                      <p className="text-xs text-white font-medium">📝 Word (DOC/DOCX)</p>
                     </div>
-
-                    <div className="bg-gray-800 border border-gray-700 rounded-lg p-3 mt-3">
-                      <p className="text-xs text-gray-300">
-                        Google will automatically convert the file into the corresponding Google format. It may take a moment to process, but once it opens, you will have the content available to edit.
-                      </p>
+                    <div className="bg-gray-800 border border-gray-700 rounded-lg p-2">
+                      <p className="text-xs text-white font-medium">📗 Excel (XLS/XLSX)</p>
+                    </div>
+                    <div className="bg-gray-800 border border-gray-700 rounded-lg p-2">
+                      <p className="text-xs text-white font-medium">📕 PDF Files</p>
+                    </div>
+                    <div className="bg-gray-800 border border-gray-700 rounded-lg p-2">
+                      <p className="text-xs text-white font-medium">📊 CSV Files</p>
+                    </div>
+                    <div className="bg-gray-800 border border-gray-700 rounded-lg p-2">
+                      <p className="text-xs text-white font-medium">📄 TXT/Markdown</p>
+                    </div>
+                    <div className="bg-gray-800 border border-gray-700 rounded-lg p-2">
+                      <p className="text-xs text-white font-medium">📽️ PowerPoint</p>
                     </div>
                   </div>
                 </div>
 
                 <div className="bg-green-900/20 border border-green-700 rounded-lg p-3">
                   <p className="text-xs text-green-300">
-                    <span className="font-medium">✓ Tip:</span> The converted file will be a new Google Doc/Sheet, and your original file remains unchanged.
+                    <span className="font-medium">✓ Tip:</span> Simply upload your files in any of these formats and we'll process them automatically!
                   </p>
                 </div>
 

@@ -60,7 +60,7 @@ const STEPS: StepContent[] = [
     samplePrompts: [],
     bestPractices: [
       "Currently, only Google Drive folders can be synced. We plan to add more data sources in future updates.",
-      "Currently, only Google Doc and Google Sheet files can be synced. Other files in your folders will not be captured. Note: You can easily convert existing files in your folder to Gdoc and Gsheet format, and enable your settings to auto-convert to these file types for any new uploads.",
+      "We support Google Docs, Google Sheets, PDF, Word (DOC/DOCX), Excel (XLS/XLSX), CSV, TXT/Markdown, and PowerPoint (PPT/PPTX) files. Files will be processed automatically when synced.",
       "Currently, the file sync does NOT support sub-folders in your folders. Meaning only files in your folders will be synced, not folders or other files in those folders. We plan to add sub-folder sync capabilities in the future."
     ],
     folderType: 'strategy'
@@ -504,19 +504,59 @@ export function AstraGuidedSetupModal({
                     </div>
 
                     {/* File Types */}
-                    <div className="flex items-center justify-center gap-4">
-                      <div className="text-center">
-                        <div className="w-16 h-16 mx-auto mb-2 rounded-xl bg-green-500/20 border-2 border-green-500 flex items-center justify-center">
-                          <FileText className="w-8 h-8 text-green-400" />
+                    <div className="text-center">
+                      <div className="bg-green-500/10 border border-green-500/30 rounded-xl p-4">
+                        <h4 className="text-white font-semibold mb-3 text-sm">Supported File Formats</h4>
+                        <div className="grid grid-cols-4 gap-2">
+                          <div className="flex flex-col items-center">
+                            <div className="w-10 h-10 rounded-lg bg-green-500/20 border border-green-500 flex items-center justify-center mb-1">
+                              <FileText className="w-5 h-5 text-green-400" />
+                            </div>
+                            <p className="text-green-400 text-[10px] font-medium">Docs</p>
+                          </div>
+                          <div className="flex flex-col items-center">
+                            <div className="w-10 h-10 rounded-lg bg-green-500/20 border border-green-500 flex items-center justify-center mb-1">
+                              <FileText className="w-5 h-5 text-green-400" />
+                            </div>
+                            <p className="text-green-400 text-[10px] font-medium">Sheets</p>
+                          </div>
+                          <div className="flex flex-col items-center">
+                            <div className="w-10 h-10 rounded-lg bg-green-500/20 border border-green-500 flex items-center justify-center mb-1">
+                              <FileText className="w-5 h-5 text-green-400" />
+                            </div>
+                            <p className="text-green-400 text-[10px] font-medium">PDF</p>
+                          </div>
+                          <div className="flex flex-col items-center">
+                            <div className="w-10 h-10 rounded-lg bg-green-500/20 border border-green-500 flex items-center justify-center mb-1">
+                              <FileText className="w-5 h-5 text-green-400" />
+                            </div>
+                            <p className="text-green-400 text-[10px] font-medium">Word</p>
+                          </div>
+                          <div className="flex flex-col items-center">
+                            <div className="w-10 h-10 rounded-lg bg-green-500/20 border border-green-500 flex items-center justify-center mb-1">
+                              <FileText className="w-5 h-5 text-green-400" />
+                            </div>
+                            <p className="text-green-400 text-[10px] font-medium">Excel</p>
+                          </div>
+                          <div className="flex flex-col items-center">
+                            <div className="w-10 h-10 rounded-lg bg-green-500/20 border border-green-500 flex items-center justify-center mb-1">
+                              <FileText className="w-5 h-5 text-green-400" />
+                            </div>
+                            <p className="text-green-400 text-[10px] font-medium">CSV</p>
+                          </div>
+                          <div className="flex flex-col items-center">
+                            <div className="w-10 h-10 rounded-lg bg-green-500/20 border border-green-500 flex items-center justify-center mb-1">
+                              <FileText className="w-5 h-5 text-green-400" />
+                            </div>
+                            <p className="text-green-400 text-[10px] font-medium">TXT</p>
+                          </div>
+                          <div className="flex flex-col items-center">
+                            <div className="w-10 h-10 rounded-lg bg-green-500/20 border border-green-500 flex items-center justify-center mb-1">
+                              <FileText className="w-5 h-5 text-green-400" />
+                            </div>
+                            <p className="text-green-400 text-[10px] font-medium">PPT</p>
+                          </div>
                         </div>
-                        <p className="text-green-400 text-xs font-semibold">Docs</p>
-                      </div>
-                      <div className="text-white text-2xl font-bold">+</div>
-                      <div className="text-center">
-                        <div className="w-16 h-16 mx-auto mb-2 rounded-xl bg-green-500/20 border-2 border-green-500 flex items-center justify-center">
-                          <FileText className="w-8 h-8 text-green-400" />
-                        </div>
-                        <p className="text-green-400 text-xs font-semibold">Sheets</p>
                       </div>
                     </div>
 
@@ -555,13 +595,13 @@ export function AstraGuidedSetupModal({
                           </div>
                           <div className="flex-1">
                             <p className="text-xs font-semibold text-green-400 uppercase tracking-wide mb-1">
-                              Current Selection
+                              ✓ Currently Connected Folder
                             </p>
                             <p className="text-white font-semibold text-sm">
                               {selectedFolder.name}
                             </p>
                             <p className="text-gray-400 text-xs mt-1">
-                              You can change your selection below or keep this folder
+                              This folder is actively syncing. You can change your selection below or keep this folder.
                             </p>
                           </div>
                         </div>
@@ -635,14 +675,17 @@ export function AstraGuidedSetupModal({
                     )}
                   </div>
 
-                  <div className="mt-4 p-4 bg-amber-500/10 border-2 border-amber-500/50 rounded-lg">
+                  <div className="mt-4 p-4 bg-blue-500/10 border-2 border-blue-500/50 rounded-lg">
                     <div className="flex items-start gap-3">
-                      <AlertCircle className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
-                      <p className="text-sm text-amber-200 font-medium">
-                        {currentStepContent.folderType === 'financial'
-                          ? 'Remember, only Google Sheets files can be synced in this folder'
-                          : 'Remember, only Google Doc files can be synced in this folder'}
-                      </p>
+                      <FileText className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5" />
+                      <div>
+                        <p className="text-sm text-blue-200 font-medium mb-1">
+                          Supported File Formats
+                        </p>
+                        <p className="text-xs text-blue-300">
+                          Google Docs, Google Sheets, PDF, Word (DOC/DOCX), Excel (XLS/XLSX), CSV, TXT/Markdown, and PowerPoint (PPT/PPTX)
+                        </p>
+                      </div>
                     </div>
                   </div>
                 </div>

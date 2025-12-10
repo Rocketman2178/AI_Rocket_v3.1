@@ -27,19 +27,11 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    const teamId = user.user_metadata?.team_id;
-    if (!teamId) {
-      return new Response(JSON.stringify({ error: "No team ID found" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    // Get Google Drive access token
+    // Get Google Drive access token (query by user_id since that's the primary key)
     const { data: connection, error: connError } = await supabaseClient
       .from("user_drive_connections")
       .select("access_token")
-      .eq("team_id", teamId)
+      .eq("user_id", user.id)
       .eq("is_active", true)
       .maybeSingle();
 

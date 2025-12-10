@@ -1061,7 +1061,7 @@ export const GoogleDriveSettings: React.FC<GoogleDriveSettingsProps> = ({ fromLa
                       <p className="font-semibold text-blue-300 mb-2">Follow these best practices to get the best AI insights on your Meetings data:</p>
                       <ol className="list-decimal ml-4 space-y-1.5">
                         <li>
-                          <span className="font-medium">Ensure meeting documents are in Google Docs format</span> (PDF, txt or other files types are not yet supported). Note: You can setup your Google Drive to automatically convert uploaded files to Google Doc format in settings.
+                          <span className="font-medium">Multiple file formats supported:</span> Google Docs, Google Sheets, PDF, Word (DOC/DOCX), Excel (XLS/XLSX), CSV, TXT/Markdown, and PowerPoint (PPT/PPTX) are all supported.
                         </li>
                         <li>
                           <span className="font-medium">Summaries are good, Transcripts are much better.</span> For best results, include full meeting transcripts, not just summaries (both is also ok). If using Google Meet, you can enable auto transcriptions and syncing to your Google Drive in the user settings. Other programs may offer this as well.
@@ -1100,7 +1100,7 @@ export const GoogleDriveSettings: React.FC<GoogleDriveSettingsProps> = ({ fromLa
                           <span className="font-medium">Astra can understand your P&L, Balance Sheet, Transaction Statements, Cash Flow, etc.</span> as well as Budgets, Equity, Tax, AR and AP documents.
                         </li>
                         <li>
-                          <span className="font-medium">Only Google Sheets files are accepted</span> for financial documents (other file types are not yet supported). You can configure your Google Drive settings to automatically convert uploaded Excel, CSV, and other spreadsheet files to Google Sheets format.
+                          <span className="font-medium">Multiple spreadsheet formats supported:</span> Google Sheets, Excel (XLS/XLSX), and CSV files are all supported for financial documents.
                         </li>
                       </ol>
                     </div>
@@ -1333,7 +1333,7 @@ export const GoogleDriveSettings: React.FC<GoogleDriveSettingsProps> = ({ fromLa
                     <p className="font-semibold text-blue-300 text-sm mb-2">Best Practices:</p>
                     <ol className="list-decimal ml-4 space-y-2 text-sm text-gray-300">
                       <li>
-                        <span className="font-medium">Ensure meeting documents are in Google Docs format</span> (PDF, txt or other files types are not yet supported). Note: You can setup your Google Drive to automatically convert uploaded files to Google Doc format in settings.
+                        <span className="font-medium">Multiple file formats supported:</span> Google Docs, Google Sheets, PDF, Word (DOC/DOCX), Excel (XLS/XLSX), CSV, TXT/Markdown, and PowerPoint (PPT/PPTX) are all supported.
                       </li>
                       <li>
                         <span className="font-medium">Summaries are good, Transcripts are much better.</span> For best results, include full meeting transcripts, not just summaries (both is also ok). If using Google Meet, you can enable auto transcriptions and syncing to your Google Drive in the user settings. Other programs may offer this as well.
@@ -1358,7 +1358,7 @@ export const GoogleDriveSettings: React.FC<GoogleDriveSettingsProps> = ({ fromLa
                         <span className="font-medium">Astra can understand your P&L, Balance Sheet, Transaction Statements, Cash Flow, etc.</span> as well as Budgets, Equity, Tax, AR and AP documents.
                       </li>
                       <li>
-                        <span className="font-medium">Only Google Sheets files are accepted</span> for financial documents (other file types are not yet supported). You can configure your Google Drive settings to automatically convert uploaded Excel, CSV, and other spreadsheet files to Google Sheets format.
+                        <span className="font-medium">Multiple spreadsheet formats supported:</span> Google Sheets, Excel (XLS/XLSX), and CSV files are all supported for financial documents.
                       </li>
                     </ol>
                   </div>

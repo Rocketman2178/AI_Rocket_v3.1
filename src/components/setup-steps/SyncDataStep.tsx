@@ -600,7 +600,7 @@ export const SyncDataStep: React.FC<SyncDataStepProps> = ({ onComplete, onGoBack
                 <div className="flex items-start gap-2">
                   <span className="text-red-400 mt-0.5">•</span>
                   <p className="text-xs text-gray-300">
-                    <span className="font-medium text-white">Wrong file type:</span> Only Google Docs and Google Sheets are supported
+                    <span className="font-medium text-white">Unsupported file type:</span> File format is not yet supported
                   </p>
                 </div>
                 <div className="flex items-start gap-2">
@@ -619,7 +619,7 @@ export const SyncDataStep: React.FC<SyncDataStepProps> = ({ onComplete, onGoBack
 
               <div className="bg-blue-900/20 border border-blue-700 rounded-lg p-3">
                 <p className="text-xs text-blue-200">
-                  <span className="font-medium">💡 Reminder:</span> Convert PDFs, Word docs, and Excel files to Google Docs/Sheets format before syncing.
+                  <span className="font-medium">✨ Supported formats:</span> Google Docs, Google Sheets, PDF, Word (DOC/DOCX), Excel (XLS/XLSX), CSV, TXT/Markdown, and PowerPoint (PPT/PPTX).
                 </p>
               </div>
 
