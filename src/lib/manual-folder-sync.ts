@@ -68,7 +68,11 @@ export async function triggerIncrementalSync(): Promise<{ success: boolean; mess
  * For quick syncs, use triggerIncrementalSync() instead
  */
 export async function triggerManualFolderSync(payload: ManualSyncPayload): Promise<ManualSyncResponse> {
-  console.log('Triggering manual full folder sync for:', payload.folder_type);
+  console.log('========================================');
+  console.log('[triggerManualFolderSync] CALLING WEBHOOK');
+  console.log('[triggerManualFolderSync] URL:', MANUAL_SYNC_WEBHOOK_URL);
+  console.log('[triggerManualFolderSync] Payload:', JSON.stringify(payload, null, 2));
+  console.log('========================================');
 
   // Fire the webhook request without waiting for completion
   // The workflow typically takes 1-2 minutes, so we use keepalive to let it run in background
@@ -80,12 +84,12 @@ export async function triggerManualFolderSync(payload: ManualSyncPayload): Promi
     body: JSON.stringify(payload),
     keepalive: true, // Allow request to complete even if page navigates away
   }).then(() => {
-    console.log('Webhook request completed for', payload.folder_type);
+    console.log('[triggerManualFolderSync] Webhook request completed for', payload.folder_type);
   }).catch((err) => {
-    console.error('Webhook request failed for', payload.folder_type, ':', err);
+    console.error('[triggerManualFolderSync] Webhook request FAILED for', payload.folder_type, ':', err);
   });
 
-  console.log('Sync triggered successfully for', payload.folder_type, '- processing in background');
+  console.log('[triggerManualFolderSync] Sync triggered successfully for', payload.folder_type, '- processing in background');
 
   // Return immediately with success
   return {
@@ -200,7 +204,10 @@ export interface SyncAllFoldersResult {
 export async function syncAllFolders(options: SyncAllFoldersOptions): Promise<SyncAllFoldersResult> {
   const { teamId, userId, folderTypes = ['strategy', 'meetings', 'financial'] } = options;
 
-  console.log('syncAllFolders called with:', { teamId, userId, folderTypes });
+  console.log('========================================');
+  console.log('[syncAllFolders] STARTING SYNC');
+  console.log('[syncAllFolders] Input:', { teamId, userId, folderTypes });
+  console.log('========================================');
 
   // First check if there's an expired/inactive connection
   console.log('Checking for expired connections...');
@@ -258,10 +265,17 @@ export async function syncAllFolders(options: SyncAllFoldersOptions): Promise<Sy
   }
 
   if (connectionError || !connection) {
-    console.error('Final connection error:', connectionError);
-    console.error('Final connection data:', connection);
+    console.error('[syncAllFolders] Final connection error:', connectionError);
+    console.error('[syncAllFolders] Final connection data:', connection);
     throw new Error('No active Google Drive connection found');
   }
+
+  console.log('[syncAllFolders] Connection found with folders:', {
+    strategy: connection.strategy_folder_id,
+    meetings: connection.meetings_folder_id,
+    financial: connection.financial_folder_id,
+    projects: connection.projects_folder_id
+  });
 
   // Get valid access token
   const accessToken = await getValidAccessToken(teamId, userId);
@@ -274,11 +288,16 @@ export async function syncAllFolders(options: SyncAllFoldersOptions): Promise<Sy
   let totalFilesFailed = 0;
 
   // Sync each folder type
+  console.log('[syncAllFolders] Starting to sync folder types:', folderTypes);
+
   for (const folderType of folderTypes) {
     const folderIdKey = `${folderType}_folder_id` as keyof typeof connection;
     const folderId = connection[folderIdKey];
 
+    console.log(`[syncAllFolders] Processing ${folderType}: folderIdKey=${folderIdKey}, folderId=${folderId}`);
+
     if (!folderId) {
+      console.log(`[syncAllFolders] Skipping ${folderType} - no folder configured`);
       results.push({
         folderType,
         success: false,
@@ -288,6 +307,8 @@ export async function syncAllFolders(options: SyncAllFoldersOptions): Promise<Sy
       });
       continue;
     }
+
+    console.log(`[syncAllFolders] Calling webhook for ${folderType} with folderId=${folderId}`);
 
     try {
       const response = await triggerManualFolderSync({

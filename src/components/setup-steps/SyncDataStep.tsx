@@ -49,7 +49,9 @@ export const SyncDataStep: React.FC<SyncDataStepProps> = ({ onComplete, onGoBack
   }, [syncing, syncComplete]);
 
   const triggerSync = async () => {
-    console.log('Triggering manual folder sync...');
+    console.log('========================================');
+    console.log('[SyncDataStep] TRIGGERING SYNC');
+    console.log('========================================');
     setSyncing(true);
 
     try {
@@ -57,8 +59,10 @@ export const SyncDataStep: React.FC<SyncDataStepProps> = ({ onComplete, onGoBack
       const teamId = user?.user_metadata?.team_id;
       const userId = user?.id;
 
+      console.log('[SyncDataStep] User info:', { teamId, userId, email: user?.email });
+
       if (!teamId || !userId) {
-        console.error('No team ID or user ID found');
+        console.error('[SyncDataStep] No team ID or user ID found');
         return;
       }
 
