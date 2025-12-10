@@ -175,25 +175,45 @@ Deno.serve(async (req: Request) => {
     const cleanAccessToken = tokens.access_token?.replace?.(/[\r\n]/g, '') || tokens.access_token;
     const cleanRefreshToken = tokens.refresh_token?.replace?.(/[\r\n]/g, '') || tokens.refresh_token;
 
+    // Check if user already has a connection to preserve folder settings
+    const { data: existingConnection } = await supabase
+      .from('user_drive_connections')
+      .select('id')
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    // Build the upsert data - only include token fields, preserve existing folders on re-auth
+    const upsertData: Record<string, unknown> = {
+      user_id: user.id,
+      team_id: teamId || null,
+      access_token: cleanAccessToken,
+      refresh_token: cleanRefreshToken,
+      token_expires_at: expiresAt.toISOString(),
+      google_account_email: profile.email,
+      is_active: true,
+      connection_status: 'connected',
+      scope_version: 2, // Current scope version (includes Sheets API)
+    };
+
+    // Only set folder IDs to null for NEW connections, not re-authorizations
+    if (!existingConnection) {
+      console.log('💾 New connection - initializing folder fields to null');
+      upsertData.meetings_folder_id = null;
+      upsertData.meetings_folder_name = null;
+      upsertData.strategy_folder_id = null;
+      upsertData.strategy_folder_name = null;
+      upsertData.financial_folder_id = null;
+      upsertData.financial_folder_name = null;
+      upsertData.projects_folder_id = null;
+      upsertData.projects_folder_name = null;
+    } else {
+      console.log('💾 Re-authorization - preserving existing folder configurations');
+    }
+
     // Store in user_drive_connections table
     const { data, error: dbError } = await supabase
       .from('user_drive_connections')
-      .upsert({
-        user_id: user.id,
-        team_id: teamId || null,
-        access_token: cleanAccessToken,
-        refresh_token: cleanRefreshToken,
-        token_expires_at: expiresAt.toISOString(),
-        google_account_email: profile.email,
-        is_active: true,
-        connection_status: 'connected',
-        scope_version: 2, // Current scope version (includes Sheets API)
-        // Folder IDs will be set later via the UI
-        meetings_folder_id: null,
-        meetings_folder_name: null,
-        strategy_folder_id: null,
-        strategy_folder_name: null
-      }, {
+      .upsert(upsertData, {
         onConflict: 'user_id'
       })
       .select();

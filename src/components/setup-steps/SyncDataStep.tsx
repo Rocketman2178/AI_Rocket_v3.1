@@ -136,16 +136,21 @@ export const SyncDataStep: React.FC<SyncDataStepProps> = ({ onComplete, onGoBack
     if (!user || !fromLaunchPrep) return;
 
     try {
-      const teamId = user.user_metadata?.team_id;
-      if (!teamId) return;
+      const userId = user.id;
+      if (!userId) return;
 
-      // Get current fuel stage progress
-      const { data: fuelProgress } = await supabase
+      // Get current fuel stage progress (using user_id, not team_id)
+      const { data: fuelProgress, error: progressError } = await supabase
         .from('launch_preparation_progress')
-        .select('level')
-        .eq('team_id', teamId)
+        .select('level, points_earned')
+        .eq('user_id', userId)
         .eq('stage', 'fuel')
-        .single();
+        .maybeSingle();
+
+      if (progressError) {
+        console.error('Error fetching fuel progress:', progressError);
+        return;
+      }
 
       const oldLevel = fuelProgress?.level || 0;
       const calculatedLevel = calculateFuelLevel(counts);
@@ -163,27 +168,23 @@ export const SyncDataStep: React.FC<SyncDataStepProps> = ({ onComplete, onGoBack
           pointsToAward += FUEL_LEVELS[i - 1]?.points || 0;
         }
 
-        // Update fuel stage level
-        await supabase
+        const currentPoints = fuelProgress?.points_earned || 0;
+
+        // Update fuel stage level and points in launch_preparation_progress
+        const { error: updateError } = await supabase
           .from('launch_preparation_progress')
-          .update({ level: calculatedLevel })
-          .eq('team_id', teamId)
+          .update({
+            level: calculatedLevel,
+            points_earned: currentPoints + pointsToAward
+          })
+          .eq('user_id', userId)
           .eq('stage', 'fuel');
 
-        // Get current total points and award new points
-        const { data: status } = await supabase
-          .from('launch_preparation_status')
-          .select('total_points')
-          .eq('team_id', teamId)
-          .single();
-
-        const currentPoints = status?.total_points || 0;
-        await supabase
-          .from('launch_preparation_status')
-          .update({ total_points: currentPoints + pointsToAward })
-          .eq('team_id', teamId);
-
-        console.log(`Level up! ${oldLevel} → ${calculatedLevel}, awarded ${pointsToAward} points (${currentPoints} → ${currentPoints + pointsToAward})`);
+        if (updateError) {
+          console.error('Error updating fuel progress:', updateError);
+        } else {
+          console.log(`Level up! ${oldLevel} → ${calculatedLevel}, awarded ${pointsToAward} points (${currentPoints} → ${currentPoints + pointsToAward})`);
+        }
       }
     } catch (error) {
       console.error('Error checking/updating level:', error);

@@ -116,6 +116,13 @@ Deno.serve(async (req: Request) => {
         const errorText = await response.text();
         console.error("[list-google-drive-folders] Google Drive API error:", response.status, errorText);
 
+        let googleError: any = {};
+        try {
+          googleError = JSON.parse(errorText);
+        } catch {
+          googleError = { raw: errorText };
+        }
+
         if (response.status === 401) {
           return new Response(JSON.stringify({
             error: "Google Drive token expired. Please reconnect.",
@@ -126,7 +133,24 @@ Deno.serve(async (req: Request) => {
           });
         }
 
-        return new Response(JSON.stringify({ error: "Failed to fetch folders from Google Drive" }), {
+        if (response.status === 403) {
+          const reason = googleError?.error?.errors?.[0]?.reason || googleError?.error?.message || "Unknown";
+          console.error("[list-google-drive-folders] 403 Forbidden - Reason:", reason);
+          return new Response(JSON.stringify({
+            error: "Google Drive access denied. Please reconnect with Drive permissions.",
+            reason: reason,
+            details: googleError?.error?.message || "The app may need to be re-authorized with Drive access.",
+            googleAccount: connection.google_account_email
+          }), {
+            status: 403,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        return new Response(JSON.stringify({
+          error: "Failed to fetch folders from Google Drive",
+          details: googleError?.error?.message || errorText
+        }), {
           status: response.status,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });

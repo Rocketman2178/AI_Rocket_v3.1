@@ -71,7 +71,13 @@ export async function triggerManualFolderSync(payload: ManualSyncPayload): Promi
   console.log('========================================');
   console.log('[triggerManualFolderSync] CALLING WEBHOOK');
   console.log('[triggerManualFolderSync] URL:', MANUAL_SYNC_WEBHOOK_URL);
-  console.log('[triggerManualFolderSync] Payload:', JSON.stringify(payload, null, 2));
+  console.log('[triggerManualFolderSync] Payload:', JSON.stringify({
+    team_id: payload.team_id,
+    user_id: payload.user_id,
+    folder_id: payload.folder_id,
+    folder_type: payload.folder_type,
+    access_token: '[REDACTED]'
+  }, null, 2));
   console.log('========================================');
 
   // Fire the webhook request without waiting for completion
