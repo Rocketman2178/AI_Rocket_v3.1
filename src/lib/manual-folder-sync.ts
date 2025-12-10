@@ -21,8 +21,11 @@ export interface ManualSyncResponse {
   files_found?: number;
 }
 
-const MANUAL_SYNC_WEBHOOK_URL = 'https://healthrocket.app.n8n.cloud/webhook/manual-folder-sync';
 const INCREMENTAL_SYNC_WEBHOOK_URL = 'https://healthrocket.app.n8n.cloud/webhook/incremental-sync-trigger';
+
+const getManualSyncProxyUrl = () => {
+  return `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/manual-folder-sync-proxy`;
+};
 
 /**
  * Triggers the incremental sync workflow
@@ -63,14 +66,16 @@ export async function triggerIncrementalSync(): Promise<{ success: boolean; mess
 }
 
 /**
- * Calls the manual folder sync webhook for a single folder
+ * Calls the manual folder sync via edge function proxy
  * This is the FULL sync that processes ALL files - use only for initial setup
  * For quick syncs, use triggerIncrementalSync() instead
  */
 export async function triggerManualFolderSync(payload: ManualSyncPayload): Promise<ManualSyncResponse> {
+  const proxyUrl = getManualSyncProxyUrl();
+
   console.log('========================================');
-  console.log('[triggerManualFolderSync] CALLING WEBHOOK');
-  console.log('[triggerManualFolderSync] URL:', MANUAL_SYNC_WEBHOOK_URL);
+  console.log('[triggerManualFolderSync] CALLING EDGE FUNCTION PROXY');
+  console.log('[triggerManualFolderSync] URL:', proxyUrl);
   console.log('[triggerManualFolderSync] Payload:', JSON.stringify({
     team_id: payload.team_id,
     user_id: payload.user_id,
@@ -80,31 +85,52 @@ export async function triggerManualFolderSync(payload: ManualSyncPayload): Promi
   }, null, 2));
   console.log('========================================');
 
-  // Fire the webhook request without waiting for completion
+  // Get auth session for edge function authentication
+  const { data: session } = await supabase.auth.getSession();
+  if (!session.session) {
+    console.error('[triggerManualFolderSync] No auth session available');
+    return {
+      success: false,
+      message: 'No authentication session',
+      team_id: payload.team_id,
+      folder_id: payload.folder_id,
+      folder_type: payload.folder_type,
+      files_sent: 0,
+      files_failed: 0,
+    };
+  }
+
+  // Fire the request through edge function proxy
   // The workflow typically takes 1-2 minutes, so we use keepalive to let it run in background
-  fetch(MANUAL_SYNC_WEBHOOK_URL, {
+  fetch(proxyUrl, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
+      'Authorization': `Bearer ${session.session.access_token}`,
     },
     body: JSON.stringify(payload),
-    keepalive: true, // Allow request to complete even if page navigates away
-  }).then(() => {
-    console.log('[triggerManualFolderSync] Webhook request completed for', payload.folder_type);
+    keepalive: true,
+  }).then(async (response) => {
+    if (response.ok) {
+      console.log('[triggerManualFolderSync] Proxy request completed for', payload.folder_type);
+    } else {
+      const errorText = await response.text();
+      console.error('[triggerManualFolderSync] Proxy request failed for', payload.folder_type, ':', response.status, errorText);
+    }
   }).catch((err) => {
-    console.error('[triggerManualFolderSync] Webhook request FAILED for', payload.folder_type, ':', err);
+    console.error('[triggerManualFolderSync] Proxy request FAILED for', payload.folder_type, ':', err);
   });
 
   console.log('[triggerManualFolderSync] Sync triggered successfully for', payload.folder_type, '- processing in background');
 
-  // Return immediately with success
+  // Return immediately with success (fire-and-forget pattern)
   return {
     success: true,
     message: 'Sync triggered successfully',
     team_id: payload.team_id,
     folder_id: payload.folder_id,
     folder_type: payload.folder_type,
-    files_sent: 1, // Indicate sync was triggered
+    files_sent: 1,
     files_failed: 0,
   };
 }
