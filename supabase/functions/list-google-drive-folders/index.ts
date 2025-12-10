@@ -32,12 +32,36 @@ Deno.serve(async (req: Request) => {
 
     console.log("[list-google-drive-folders] User authenticated:", user.id, user.email);
 
-    const { data: connection, error: connError } = await supabaseClient
+    const teamId = user.user_metadata?.team_id;
+    console.log("[list-google-drive-folders] User team_id:", teamId);
+
+    let connection = null;
+    let connError = null;
+
+    // First try to find user's own connection
+    const userResult = await supabaseClient
       .from("user_drive_connections")
       .select("access_token, token_expires_at, google_account_email")
       .eq("user_id", user.id)
       .eq("is_active", true)
       .maybeSingle();
+
+    if (userResult.data) {
+      console.log("[list-google-drive-folders] Found user's own connection");
+      connection = userResult.data;
+    } else if (teamId) {
+      // Fall back to team connection
+      console.log("[list-google-drive-folders] No user connection, trying team connection for team:", teamId);
+      const teamResult = await supabaseClient
+        .from("user_drive_connections")
+        .select("access_token, token_expires_at, google_account_email")
+        .eq("team_id", teamId)
+        .eq("is_active", true)
+        .maybeSingle();
+
+      connection = teamResult.data;
+      connError = teamResult.error;
+    }
 
     if (connError) {
       console.error("[list-google-drive-folders] DB error:", connError);
@@ -48,7 +72,7 @@ Deno.serve(async (req: Request) => {
     }
 
     if (!connection?.access_token) {
-      console.error("[list-google-drive-folders] No active connection found for user:", user.id);
+      console.error("[list-google-drive-folders] No active connection found for user:", user.id, "or team:", teamId);
       return new Response(JSON.stringify({ error: "No active Google Drive connection" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },

@@ -143,12 +143,34 @@ export const handleGoogleDriveCallback = async (
  * Gets the user's Google Drive connection
  */
 export const getGoogleDriveConnection = async (autoRefresh = false): Promise<GoogleDriveConnection | null> => {
-  const { data, error } = await supabase
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    return null;
+  }
+
+  // First try to find user's own connection
+  let { data, error } = await supabase
     .from('user_drive_connections')
     .select('*')
+    .eq('user_id', user.id)
+    .eq('is_active', true)
     .maybeSingle();
 
+  // If no user connection, try team connection
+  if (!data && user.user_metadata?.team_id) {
+    const teamResult = await supabase
+      .from('user_drive_connections')
+      .select('*')
+      .eq('team_id', user.user_metadata.team_id)
+      .eq('is_active', true)
+      .maybeSingle();
+
+    data = teamResult.data;
+    error = teamResult.error;
+  }
+
   if (error) {
+    console.error('Error fetching drive connection:', error);
     throw error;
   }
 
@@ -157,9 +179,12 @@ export const getGoogleDriveConnection = async (autoRefresh = false): Promise<Goo
     console.log('📁 Token expired, auto-refreshing...');
     await refreshGoogleDriveToken();
 
+    // Re-fetch the connection after refresh
     const { data: refreshedData } = await supabase
       .from('user_drive_connections')
       .select('*')
+      .eq('user_id', user.id)
+      .eq('is_active', true)
       .maybeSingle();
 
     return refreshedData;

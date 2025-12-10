@@ -12,7 +12,7 @@ import {
 import { supabase } from '../lib/supabase';
 import { AstraGuidedSetupModal } from './AstraGuidedSetupModal';
 import { FolderSelectionWrapper } from './FolderSelectionWrapper';
-import { syncAllFolders } from '../lib/manual-folder-sync';
+import { syncAllFolders, triggerIncrementalSync } from '../lib/manual-folder-sync';
 import { GoogleDriveReauthGuide } from './GoogleDriveReauthGuide';
 
 interface GoogleDriveSettingsProps {
@@ -82,48 +82,26 @@ export const GoogleDriveSettings: React.FC<GoogleDriveSettingsProps> = ({ fromLa
   };
 
   const handleManualSync = async () => {
-    console.log('[SYNC] Button clicked, starting manual folder sync...');
+    console.log('[SYNC] Button clicked, triggering incremental sync...');
 
     setManualSyncing(true);
     setSyncResult(null);
 
     try {
-      // Get user's team info
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        throw new Error('No user found');
-      }
-
-      const teamId = user.user_metadata?.team_id;
-      const userId = user.id;
-
-      if (!teamId) {
-        throw new Error('No team ID found');
-      }
-
-      console.log('[SYNC] Calling syncAllFolders for team:', teamId);
-
-      // Call manual folder sync for all configured folders
-      const result = await syncAllFolders({
-        teamId,
-        userId,
-        folderTypes: ['strategy', 'meetings', 'financial', 'projects'],
-      });
-
-      console.log('[SYNC] Manual folder sync result:', result);
+      console.log('[SYNC] Calling triggerIncrementalSync...');
+      const result = await triggerIncrementalSync();
+      console.log('[SYNC] Incremental sync result:', result);
 
       if (result.success) {
         console.log('[SYNC] Success! Setting success state...');
         setSyncResult({
           success: true,
-          message: 'Sync started - processing all folders',
+          message: result.message,
         });
-        // Clear success checkmark after 2 seconds
         setTimeout(() => {
           console.log('[SYNC] Clearing success checkmark');
           setSyncResult(null);
         }, 2000);
-        // Reload documents after a delay to see if any new data arrived
         setTimeout(() => {
           console.log('[SYNC] Reloading documents...');
           loadSyncedDocuments();
@@ -132,26 +110,15 @@ export const GoogleDriveSettings: React.FC<GoogleDriveSettingsProps> = ({ fromLa
         console.error('[SYNC] Sync failed:', result);
         setSyncResult({
           success: false,
-          message: 'Some folders failed to sync',
+          message: result.message,
         });
       }
     } catch (error) {
       console.error('[SYNC] Exception during sync:', error);
-
-      // Check if the error is due to expired Google token
-      if (error instanceof Error && error.message === 'GOOGLE_TOKEN_EXPIRED') {
-        setSyncResult({
-          success: false,
-          message: 'Your Google Drive connection has expired. Please reconnect your account.',
-        });
-        // Refresh the connection status to trigger the reconnect flow
-        loadConnection();
-      } else {
-        setSyncResult({
-          success: false,
-          message: error instanceof Error ? error.message : 'Failed to trigger sync',
-        });
-      }
+      setSyncResult({
+        success: false,
+        message: error instanceof Error ? error.message : 'Failed to trigger sync',
+      });
     } finally {
       console.log('[SYNC] Finally block - setting manualSyncing to false');
       setManualSyncing(false);

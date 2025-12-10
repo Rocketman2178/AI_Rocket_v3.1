@@ -95,11 +95,14 @@ export const ChooseFolderStep: React.FC<ChooseFolderStepProps> = ({ onComplete, 
         }
       );
 
+      const responseData = await response.json();
+
       if (!response.ok) {
-        throw new Error('Failed to load folders');
+        console.error('Edge function error:', response.status, responseData);
+        throw new Error(responseData.error || 'Failed to load folders');
       }
 
-      const { folders: driveFolders } = await response.json();
+      const { folders: driveFolders } = responseData;
       setFolders(driveFolders || []);
       setViewMode('select-existing');
     } catch (err: any) {
