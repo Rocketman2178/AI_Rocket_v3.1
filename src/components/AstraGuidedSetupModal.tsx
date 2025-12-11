@@ -73,12 +73,12 @@ const STEPS: StepContent[] = [
     title: 'Strategy Documents',
     astraMessage: "Let's start with your Strategy documents. These are the core documents that define your company's direction and goals. By connecting these, I can help you analyze alignment across your organization and ensure your team is working toward the same vision.",
     examples: [
-      "Mission & Vision statements",
-      "Quarterly OKRs or goals",
-      "Strategic plans & roadmaps",
-      "Company values documents",
-      "Annual planning materials",
-      "Product strategy documents"
+      "Mission & Vision Statements",
+      "Quarterly OKRs or Goals",
+      "Strategic Plans & Roadmaps",
+      "Company Values Documents",
+      "Annual Planning Materials",
+      "Product Strategy Documents"
     ],
     samplePrompts: [
       "Analyze alignment between our mission and recent team meetings",
@@ -96,12 +96,12 @@ const STEPS: StepContent[] = [
     title: 'Projects & Campaigns',
     astraMessage: "Next, let's connect your Projects folder. This is where you keep documents for active campaigns, client projects, and time-bound initiatives. With projects synced, I can help you track progress, identify blockers, and ensure projects align with your strategic goals.",
     examples: [
-      "Marketing campaigns",
-      "Client project folders",
-      "Product launches",
-      "Sales programs",
-      "Initiative documentation",
-      "Campaign materials"
+      "Marketing Campaigns",
+      "Client Project Folders",
+      "Product Launches",
+      "Sales Programs",
+      "Initiative Documentation",
+      "Campaign Materials"
     ],
     samplePrompts: [
       "Summarize status of all active projects",
@@ -119,12 +119,7 @@ const STEPS: StepContent[] = [
     title: 'Meeting Documents',
     astraMessage: "Now let's connect your Meeting Documents. These documents capture decisions, action items, and team discussions. With meeting documents synced, I can help you track decisions, summarize key takeaways, and identify patterns across your team conversations.",
     examples: [
-      "Team meeting documents",
-      "1-on-1 meeting summaries",
-      "Sprint retrospectives",
-      "Executive reviews",
-      "Planning session documents",
-      "Standup summaries"
+      "Summaries or Transcripts (not video or audio recordings) from: Leadership Meetings, Department Meetings, Client Meetings, Sales Calls, Board Meetings, etc."
     ],
     samplePrompts: [
       "Summarize key decisions from this week's meetings",
@@ -142,12 +137,12 @@ const STEPS: StepContent[] = [
     title: 'Financial Documents',
     astraMessage: "Finally, let's connect your Financial data. These documents help me understand your company's financial health and spending patterns. With financial data synced, I can help you analyze expenses, track budget alignment, and connect financial performance to your strategic goals.",
     examples: [
-      "Profit & Loss statements",
-      "Balance sheets",
-      "Budget forecasts",
-      "Expense reports",
-      "Financial dashboards",
-      "Revenue tracking sheets"
+      "Profit & Loss Statements",
+      "Balance Sheets",
+      "Budget Forecasts",
+      "Expense Reports",
+      "Financial Dashboards",
+      "Revenue Tracking Sheets"
     ],
     samplePrompts: [
       "Summarize our financials and the alignment to our core values and mission.",

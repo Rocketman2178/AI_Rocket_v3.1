@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FolderPlus, CheckCircle, Folder, Loader2, FolderOpen, Plus, Search } from 'lucide-react';
+import { FolderPlus, CheckCircle, Folder, Loader2, FolderOpen, Plus, Search, FileText, RefreshCw, ExternalLink, ChevronDown, ChevronUp } from 'lucide-react';
 import { SetupGuideProgress } from '../../lib/setup-guide-utils';
 import { getGoogleDriveConnection } from '../../lib/google-drive-oauth';
 import { supabase } from '../../lib/supabase';
@@ -9,7 +9,7 @@ import { GoogleDriveFolderPicker } from '../GoogleDriveFolderPicker';
 interface ChooseFolderStepProps {
   onComplete: (folderData: any) => void;
   progress: SetupGuideProgress | null;
-  onProceed?: () => void; // Optional callback when user clicks "Next" from success screen
+  onProceed?: () => void;
 }
 
 interface GoogleDriveFolder {
@@ -18,7 +18,25 @@ interface GoogleDriveFolder {
   createdTime?: string;
 }
 
-type ViewMode = 'initial' | 'select-existing' | 'creating-new';
+interface DriveFile {
+  id: string;
+  name: string;
+  mimeType: string;
+  modifiedTime?: string;
+  category?: string;
+  webViewLink?: string;
+}
+
+type ViewMode = 'initial' | 'select-existing' | 'creating-new' | 'file-preview';
+
+const STRATEGY_DOCUMENT_EXAMPLES = [
+  { icon: '📜', name: 'Mission Statement', desc: 'Your Purpose and Core Mission' },
+  { icon: '⭐', name: 'Core Values', desc: 'Guiding Principles for Your Team' },
+  { icon: '🎯', name: 'Goals & OKRs', desc: 'Quarterly and Annual Objectives' },
+  { icon: '🗺️', name: 'Strategic Plans', desc: 'Long-Term Vision and Roadmaps' },
+  { icon: '📊', name: 'SWOT Analysis', desc: 'Strengths, Weaknesses, Opportunities' },
+  { icon: '📋', name: 'V/TO Document', desc: 'Vision/Traction Organizer (EOS)' },
+];
 
 export const ChooseFolderStep: React.FC<ChooseFolderStepProps> = ({ onComplete, onProceed }) => {
   const [viewMode, setViewMode] = useState<ViewMode>('initial');
@@ -31,7 +49,9 @@ export const ChooseFolderStep: React.FC<ChooseFolderStepProps> = ({ onComplete, 
   const [isNewlyCreated, setIsNewlyCreated] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [accessToken, setAccessToken] = useState<string>('');
-  // Use custom UI with list and search (we have full drive scope)
+  const [folderFiles, setFolderFiles] = useState<DriveFile[]>([]);
+  const [loadingFiles, setLoadingFiles] = useState(false);
+  const [showExamples, setShowExamples] = useState(false);
   const useGooglePicker = false;
 
   useEffect(() => {
@@ -48,7 +68,6 @@ export const ChooseFolderStep: React.FC<ChooseFolderStepProps> = ({ onComplete, 
         return;
       }
 
-      // Check if strategy folders are already configured (use original columns)
       if (connection.strategy_folder_id) {
         setHasExistingFolders(true);
       }
@@ -56,6 +75,59 @@ export const ChooseFolderStep: React.FC<ChooseFolderStepProps> = ({ onComplete, 
       console.error('Error checking existing setup:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadFolderFiles = async (folderId: string) => {
+    setLoadingFiles(true);
+    setError('');
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        setError('Not authenticated');
+        return;
+      }
+
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/list-google-drive-files?folderId=${encodeURIComponent(folderId)}`,
+        {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`,
+          },
+        }
+      );
+
+      const responseData = await response.json();
+
+      if (!response.ok) {
+        console.error('Edge function error:', response.status, responseData);
+        throw new Error(responseData.error || 'Failed to load files');
+      }
+
+      setFolderFiles(responseData.files || []);
+    } catch (err: any) {
+      console.error('Error loading folder files:', err);
+      setFolderFiles([]);
+    } finally {
+      setLoadingFiles(false);
+    }
+  };
+
+  const getFileIcon = (mimeType: string) => {
+    if (mimeType.includes('document') || mimeType.includes('word')) return '📄';
+    if (mimeType.includes('spreadsheet') || mimeType.includes('excel') || mimeType === 'text/csv') return '📊';
+    if (mimeType.includes('presentation') || mimeType.includes('powerpoint')) return '📽️';
+    if (mimeType === 'application/pdf') return '📕';
+    if (mimeType.includes('text') || mimeType === 'text/markdown') return '📝';
+    return '📄';
+  };
+
+  const openGoogleDrive = () => {
+    if (selectedFolder?.id) {
+      window.open(`https://drive.google.com/drive/folders/${selectedFolder.id}`, '_blank');
+    } else {
+      window.open('https://drive.google.com', '_blank');
     }
   };
 
@@ -204,7 +276,6 @@ export const ChooseFolderStep: React.FC<ChooseFolderStepProps> = ({ onComplete, 
         return;
       }
 
-      // Save folder selection
       const saveResponse = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/save-folder-selection`,
         {
@@ -225,22 +296,26 @@ export const ChooseFolderStep: React.FC<ChooseFolderStepProps> = ({ onComplete, 
         throw new Error('Failed to save folder selection');
       }
 
-      // Mark as having existing folders and show success screen
       setSelectedFolder(folder);
-      setHasExistingFolders(true);
-
-      // Call onComplete but let the component show success screen first
-      onComplete({
-        selectedFolder: folder,
-        folderType: 'strategy',
-        isNewFolder: false,
-      });
+      setLoading(false);
+      setViewMode('file-preview');
+      loadFolderFiles(folder.id);
     } catch (err: any) {
       console.error('Error selecting folder:', err);
       setError(err.message || 'Failed to select folder');
-    } finally {
       setLoading(false);
     }
+  };
+
+  const handleConfirmFolder = () => {
+    if (!selectedFolder) return;
+    setHasExistingFolders(true);
+    onComplete({
+      selectedFolder,
+      folderType: 'strategy',
+      isNewFolder: false,
+      filesInFolder: folderFiles.length,
+    });
   };
 
   if (loading && viewMode === 'initial') {
@@ -516,6 +591,157 @@ export const ChooseFolderStep: React.FC<ChooseFolderStepProps> = ({ onComplete, 
             </div>
           </>
         )}
+      </div>
+    );
+  }
+
+  if (viewMode === 'file-preview') {
+    return (
+      <div className="space-y-4">
+        <div className="text-center">
+          <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-green-600/20 mb-3">
+            <CheckCircle className="w-7 h-7 text-green-400" />
+          </div>
+          <h2 className="text-xl font-bold text-white mb-2">Folder Connected!</h2>
+          <p className="text-sm text-gray-400">
+            {selectedFolder?.name}
+          </p>
+        </div>
+
+        {loadingFiles ? (
+          <div className="bg-gray-800 rounded-lg p-6">
+            <div className="flex items-center justify-center space-x-3">
+              <Loader2 className="w-5 h-5 text-orange-400 animate-spin" />
+              <span className="text-gray-300 text-sm">Checking folder contents...</span>
+            </div>
+          </div>
+        ) : folderFiles.length > 0 ? (
+          <div className="space-y-3">
+            <div className="bg-green-900/20 border border-green-700 rounded-lg p-3">
+              <p className="text-sm text-green-300 font-medium">
+                Found {folderFiles.length} file{folderFiles.length !== 1 ? 's' : ''} ready to sync!
+              </p>
+            </div>
+
+            <div className="bg-gray-800 rounded-lg p-4 max-h-[200px] overflow-y-auto">
+              <div className="space-y-2">
+                {folderFiles.slice(0, 10).map((file) => (
+                  <div
+                    key={file.id}
+                    className="flex items-center space-x-3 p-2 bg-gray-900/50 rounded-lg"
+                  >
+                    <span className="text-lg">{getFileIcon(file.mimeType)}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm text-white truncate">{file.name}</p>
+                      {file.modifiedTime && (
+                        <p className="text-xs text-gray-500">
+                          Modified {new Date(file.modifiedTime).toLocaleDateString()}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+                {folderFiles.length > 10 && (
+                  <p className="text-xs text-gray-500 text-center pt-2">
+                    +{folderFiles.length - 10} more files
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-2">
+              <button
+                onClick={openGoogleDrive}
+                className="w-full sm:w-auto px-5 py-2.5 bg-gray-700 hover:bg-gray-600 text-white rounded-lg text-sm font-medium transition-colors flex items-center justify-center space-x-2 min-h-[44px]"
+              >
+                <span>Add More Files</span>
+                <ExternalLink className="w-4 h-4" />
+              </button>
+              <button
+                onClick={handleConfirmFolder}
+                className="w-full sm:w-auto px-5 py-2.5 bg-gradient-to-r from-orange-600 to-orange-700 hover:from-orange-700 hover:to-orange-800 text-white rounded-lg text-sm font-medium transition-all min-h-[44px]"
+              >
+                Sync These Files
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <div className="bg-yellow-900/20 border border-yellow-700 rounded-lg p-3">
+              <p className="text-sm text-yellow-300">
+                This folder is empty. Add some strategy documents to get started.
+              </p>
+            </div>
+
+            <button
+              onClick={() => setShowExamples(!showExamples)}
+              className="w-full flex items-center justify-between p-3 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors"
+            >
+              <span className="text-sm text-gray-300 font-medium">What should I put here?</span>
+              {showExamples ? (
+                <ChevronUp className="w-4 h-4 text-gray-400" />
+              ) : (
+                <ChevronDown className="w-4 h-4 text-gray-400" />
+              )}
+            </button>
+
+            {showExamples && (
+              <div className="bg-gray-800 rounded-lg p-4">
+                <p className="text-xs text-gray-400 mb-3">Strategy documents include:</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {STRATEGY_DOCUMENT_EXAMPLES.map((example, idx) => (
+                    <div key={idx} className="bg-gray-900/50 rounded-lg p-2 flex items-start gap-2">
+                      <span className="text-lg">{example.icon}</span>
+                      <div>
+                        <p className="text-xs text-white font-medium">{example.name}</p>
+                        <p className="text-xs text-gray-500">{example.desc}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-2">
+              <button
+                onClick={openGoogleDrive}
+                className="w-full sm:w-auto px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors flex items-center justify-center space-x-2 min-h-[44px]"
+              >
+                <span>Open Folder in Drive</span>
+                <ExternalLink className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => selectedFolder && loadFolderFiles(selectedFolder.id)}
+                disabled={loadingFiles}
+                className="w-full sm:w-auto px-5 py-2.5 bg-gray-700 hover:bg-gray-600 text-white rounded-lg text-sm font-medium transition-colors flex items-center justify-center space-x-2 min-h-[44px] disabled:opacity-50"
+              >
+                <RefreshCw className={`w-4 h-4 ${loadingFiles ? 'animate-spin' : ''}`} />
+                <span>Check Again</span>
+              </button>
+            </div>
+
+            <div className="flex justify-center">
+              <button
+                onClick={handleConfirmFolder}
+                className="text-sm text-gray-400 hover:text-white underline"
+              >
+                Skip for now, I'll add files later
+              </button>
+            </div>
+          </div>
+        )}
+
+        <div className="flex justify-center pt-2">
+          <button
+            onClick={() => {
+              setViewMode('select-existing');
+              setFolderFiles([]);
+            }}
+            className="text-sm text-gray-500 hover:text-gray-300 transition-colors"
+          >
+            Choose a different folder
+          </button>
+        </div>
       </div>
     );
   }
