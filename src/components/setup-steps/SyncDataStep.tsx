@@ -67,13 +67,11 @@ export const SyncDataStep: React.FC<SyncDataStepProps> = ({ onComplete, onGoBack
       }
 
       // Determine which folder types to sync
-      let foldersToSync: ('strategy' | 'meetings' | 'financial')[] = ['strategy', 'meetings', 'financial'];
+      let foldersToSync: ('strategy' | 'meetings' | 'financial' | 'projects')[] = ['strategy', 'meetings', 'financial', 'projects'];
 
       // If adding new folders, only sync those specific types
       if (isAddingNewFolders && newFolderTypes.length > 0) {
-        foldersToSync = newFolderTypes.filter(type =>
-          type === 'strategy' || type === 'meetings' || type === 'financial'
-        ) as ('strategy' | 'meetings' | 'financial')[];
+        foldersToSync = newFolderTypes;
       }
 
       console.log('Calling manual folder sync for team:', teamId, 'folders:', foldersToSync);

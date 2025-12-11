@@ -388,12 +388,17 @@ export const AddMoreFoldersStep: React.FC<AddMoreFoldersStepProps> = ({ onComple
                   <button
                     onClick={() => openFolderSelector(folder.type)}
                     disabled={folder.alreadyConnected}
-                    className={`px-4 py-2 rounded-lg font-medium transition-colors min-h-[44px] ${
+                    className={`px-4 py-2 rounded-lg font-medium transition-colors min-h-[44px] flex items-center gap-2 ${
                       folder.alreadyConnected
                         ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
+                        : folder.id
+                        ? 'bg-green-600 hover:bg-green-700 text-white'
                         : 'bg-orange-600 hover:bg-orange-700 text-white'
                     }`}
                   >
+                    {folder.id && !folder.alreadyConnected && (
+                      <CheckCircle className="w-4 h-4" />
+                    )}
                     {folder.id && !folder.alreadyConnected ? 'Change' : 'Select'}
                   </button>
                 </div>

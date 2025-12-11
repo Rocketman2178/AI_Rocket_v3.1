@@ -234,7 +234,7 @@ export interface SyncAllFoldersResult {
  * Calls the webhook once per folder type
  */
 export async function syncAllFolders(options: SyncAllFoldersOptions): Promise<SyncAllFoldersResult> {
-  const { teamId, userId, folderTypes = ['strategy', 'meetings', 'financial'] } = options;
+  const { teamId, userId, folderTypes = ['strategy', 'meetings', 'financial', 'projects'] } = options;
 
   console.log('========================================');
   console.log('[syncAllFolders] STARTING SYNC');
