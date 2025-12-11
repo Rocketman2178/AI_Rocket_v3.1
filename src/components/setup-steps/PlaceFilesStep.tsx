@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FileText, ExternalLink, Upload, Sparkles, CheckCircle2, X, Info } from 'lucide-react';
+import { FileText, ExternalLink, Upload, Sparkles, CheckCircle2, X, Info, ArrowLeft } from 'lucide-react';
 import { SetupGuideProgress } from '../../lib/setup-guide-utils';
 import { StrategyDocumentModal } from '../StrategyDocumentModal';
 import { supabase } from '../../lib/supabase';
@@ -8,11 +8,21 @@ interface PlaceFilesStepProps {
   onComplete: () => void;
   progress: SetupGuideProgress | null;
   folderData: any;
+  folderType?: 'strategy' | 'meetings' | 'financial' | 'projects';
+  onGoBack?: () => void;
+  forceChooseOption?: boolean;
 }
 
 type ViewMode = 'choose-option' | 'waiting-for-files' | 'document-created';
 
-export const PlaceFilesStep: React.FC<PlaceFilesStepProps> = ({ onComplete, folderData, progress }) => {
+export const PlaceFilesStep: React.FC<PlaceFilesStepProps> = ({
+  onComplete,
+  folderData,
+  progress,
+  folderType = 'strategy',
+  onGoBack,
+  forceChooseOption = false
+}) => {
   const [viewMode, setViewMode] = useState<ViewMode>('choose-option');
   const [showDocumentModal, setShowDocumentModal] = useState(false);
   const [createdDocumentId, setCreatedDocumentId] = useState('');
@@ -62,21 +72,36 @@ export const PlaceFilesStep: React.FC<PlaceFilesStepProps> = ({ onComplete, fold
 
   // Check if step 4 is already completed and set view accordingly
   useEffect(() => {
-    if (progress?.step_4_files_placed_in_folder) {
+    if (forceChooseOption) {
+      console.log('forceChooseOption is true, showing choose-option view');
+      setViewMode('choose-option');
+    } else if (progress?.step_4_files_placed_in_folder) {
       console.log('Step 4 already completed, showing document-created view');
       setViewMode('document-created');
     } else {
       console.log('Step 4 not completed, showing choose-option view');
       setViewMode('choose-option');
     }
-  }, [progress?.step_4_files_placed_in_folder]);
+  }, [progress?.step_4_files_placed_in_folder, forceChooseOption]);
 
   const handleHasFiles = () => {
     setViewMode('waiting-for-files');
   };
 
+  const handleBackToOptions = () => {
+    setViewMode('choose-option');
+  };
+
   const handleCreateStrategyDocument = () => {
     setShowDocumentModal(true);
+  };
+
+  const isStrategyFolder = folderType === 'strategy';
+  const folderTypeLabels: Record<string, string> = {
+    strategy: 'Strategy',
+    meetings: 'Meetings',
+    financial: 'Financial',
+    projects: 'Projects'
   };
 
   const handleDocumentCreated = async (documentId: string) => {
@@ -101,20 +126,32 @@ export const PlaceFilesStep: React.FC<PlaceFilesStepProps> = ({ onComplete, fold
   if (viewMode === 'choose-option') {
     return (
       <div className="space-y-4">
+        {onGoBack && (
+          <button
+            onClick={onGoBack}
+            className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-white transition-colors mb-2"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Back
+          </button>
+        )}
+
         <div className="text-center">
           <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-yellow-600/20 mb-3">
             <Upload className="w-7 h-7 text-yellow-400" />
           </div>
-          <h2 className="text-xl font-bold text-white mb-2">Place Your Files</h2>
+          <h2 className="text-xl font-bold text-white mb-2">
+            Place Your {folderTypeLabels[folderType]} Files
+          </h2>
           <p className="text-sm text-gray-300">
             Add at least one document to your folder, then return here to proceed
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div className={`grid gap-3 ${isStrategyFolder ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1'}`}>
           <button
             onClick={handleHasFiles}
-            className="bg-purple-900/20 hover:bg-purple-800/30 border-2 border-purple-700 hover:border-purple-500 rounded-lg p-4 transition-all group min-h-[140px] flex flex-col items-center justify-center"
+            className={`bg-purple-900/20 hover:bg-purple-800/30 border-2 border-purple-700 hover:border-purple-500 rounded-lg p-4 transition-all group min-h-[140px] flex flex-col items-center justify-center ${!isStrategyFolder ? 'max-w-md mx-auto w-full' : ''}`}
           >
             <div className="w-12 h-12 rounded-full bg-purple-600/20 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
               <Upload className="w-6 h-6 text-purple-400" />
@@ -123,60 +160,76 @@ export const PlaceFilesStep: React.FC<PlaceFilesStepProps> = ({ onComplete, fold
               I have files to put in my folder
             </h3>
             <p className="text-xs text-gray-400 text-center">
-              I'll place my existing strategy documents in the folder
+              I'll place my existing {folderTypeLabels[folderType].toLowerCase()} documents in the folder
             </p>
           </button>
 
-          <button
-            onClick={handleCreateStrategyDocument}
-            className="bg-blue-900/20 hover:bg-blue-800/30 border-2 border-blue-700 hover:border-blue-500 rounded-lg p-4 transition-all group min-h-[140px] flex flex-col items-center justify-center"
-          >
-            <div className="w-12 h-12 rounded-full bg-blue-600/20 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
-              <Sparkles className="w-6 h-6 text-blue-400" />
-            </div>
-            <h3 className="text-base font-semibold text-white mb-1 text-center">
-              Help me create my first file
-            </h3>
-            <p className="text-xs text-gray-400 text-center">
-              Let Astra help you create a strategy document
-            </p>
-          </button>
-        </div>
-
-        <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg p-4 border border-gray-700">
-          <div className="flex items-center gap-2 mb-3">
-            <span className="text-xl">🎯</span>
-            <h4 className="text-white text-sm font-semibold">Strategy Documents Include:</h4>
-          </div>
-          <div className="grid grid-cols-2 gap-2 mb-3">
-            <div className="bg-blue-950/50 rounded-lg p-2 flex items-center gap-2">
-              <span className="text-lg">📜</span>
-              <span className="text-xs text-blue-200">Mission</span>
-            </div>
-            <div className="bg-blue-950/50 rounded-lg p-2 flex items-center gap-2">
-              <span className="text-lg">⭐</span>
-              <span className="text-xs text-blue-200">Values</span>
-            </div>
-            <div className="bg-blue-950/50 rounded-lg p-2 flex items-center gap-2">
-              <span className="text-lg">🎯</span>
-              <span className="text-xs text-blue-200">Goals</span>
-            </div>
-            <div className="bg-blue-950/50 rounded-lg p-2 flex items-center gap-2">
-              <span className="text-lg">🗺️</span>
-              <span className="text-xs text-blue-200">Plans</span>
-            </div>
-          </div>
-
-          {actualFolderId && (
+          {isStrategyFolder && (
             <button
-              onClick={openGoogleDrive}
-              className="text-xs text-green-400 hover:text-green-300 underline flex items-center gap-1 mx-auto"
+              onClick={handleCreateStrategyDocument}
+              className="bg-blue-900/20 hover:bg-blue-800/30 border-2 border-blue-700 hover:border-blue-500 rounded-lg p-4 transition-all group min-h-[140px] flex flex-col items-center justify-center"
             >
-              <ExternalLink className="w-3 h-3" />
-              Open your Google Drive folder
+              <div className="w-12 h-12 rounded-full bg-blue-600/20 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                <Sparkles className="w-6 h-6 text-blue-400" />
+              </div>
+              <h3 className="text-base font-semibold text-white mb-1 text-center">
+                Help me create my first file
+              </h3>
+              <p className="text-xs text-gray-400 text-center">
+                Let Astra help you create a strategy document
+              </p>
             </button>
           )}
         </div>
+
+        {isStrategyFolder && (
+          <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg p-4 border border-gray-700">
+            <div className="flex items-center gap-2 mb-3">
+              <span className="text-xl">🎯</span>
+              <h4 className="text-white text-sm font-semibold">Strategy Documents Include:</h4>
+            </div>
+            <div className="grid grid-cols-2 gap-2 mb-3">
+              <div className="bg-blue-950/50 rounded-lg p-2 flex items-center gap-2">
+                <span className="text-lg">📜</span>
+                <span className="text-xs text-blue-200">Mission</span>
+              </div>
+              <div className="bg-blue-950/50 rounded-lg p-2 flex items-center gap-2">
+                <span className="text-lg">⭐</span>
+                <span className="text-xs text-blue-200">Values</span>
+              </div>
+              <div className="bg-blue-950/50 rounded-lg p-2 flex items-center gap-2">
+                <span className="text-lg">🎯</span>
+                <span className="text-xs text-blue-200">Goals</span>
+              </div>
+              <div className="bg-blue-950/50 rounded-lg p-2 flex items-center gap-2">
+                <span className="text-lg">🗺️</span>
+                <span className="text-xs text-blue-200">Plans</span>
+              </div>
+            </div>
+
+            {actualFolderId && (
+              <button
+                onClick={openGoogleDrive}
+                className="text-xs text-green-400 hover:text-green-300 underline flex items-center gap-1 mx-auto"
+              >
+                <ExternalLink className="w-3 h-3" />
+                Open your Google Drive folder
+              </button>
+            )}
+          </div>
+        )}
+
+        {!isStrategyFolder && actualFolderId && (
+          <div className="flex justify-center">
+            <button
+              onClick={openGoogleDrive}
+              className="text-sm text-green-400 hover:text-green-300 underline flex items-center gap-1"
+            >
+              <ExternalLink className="w-4 h-4" />
+              Open your Google Drive folder
+            </button>
+          </div>
+        )}
 
         <div className="bg-gradient-to-br from-gray-800 to-gray-900 border border-gray-700 rounded-lg p-4">
           <h4 className="text-white text-sm font-semibold mb-3 flex items-center gap-2">
@@ -335,11 +388,21 @@ export const PlaceFilesStep: React.FC<PlaceFilesStepProps> = ({ onComplete, fold
   if (viewMode === 'waiting-for-files') {
     return (
       <div className="space-y-4">
+        <button
+          onClick={handleBackToOptions}
+          className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-white transition-colors"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Back to Options
+        </button>
+
         <div className="text-center">
           <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-yellow-600/20 mb-3">
             <Upload className="w-7 h-7 text-yellow-400" />
           </div>
-          <h2 className="text-xl font-bold text-white mb-2">Place Your Files</h2>
+          <h2 className="text-xl font-bold text-white mb-2">
+            Place Your {folderTypeLabels[folderType]} Files
+          </h2>
           <p className="text-sm text-gray-300">
             Add at least one document to your folder, then return here to proceed
           </p>
@@ -361,7 +424,7 @@ export const PlaceFilesStep: React.FC<PlaceFilesStepProps> = ({ onComplete, fold
               <span className="flex-shrink-0 w-5 h-5 rounded-full bg-yellow-600/20 flex items-center justify-center text-xs text-yellow-400 font-medium">
                 2
               </span>
-              <span>Upload or move at least one Strategy Document into the folder</span>
+              <span>Upload or move at least one {folderTypeLabels[folderType]} document into the folder</span>
             </li>
             <li className="flex items-start space-x-2">
               <span className="flex-shrink-0 w-5 h-5 rounded-full bg-yellow-600/20 flex items-center justify-center text-xs text-yellow-400 font-medium">

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Folder, CheckCircle, Loader2, FolderPlus, FileText, Edit2, X, Search, FolderOpen } from 'lucide-react';
+import { Folder, CheckCircle, Loader2, FolderPlus, FileText, Edit2, X, Search, FolderOpen, Info } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { FolderInfo as GoogleFolderInfo, getGoogleDriveConnection, updateFolderConfiguration } from '../lib/google-drive-oauth';
@@ -7,6 +7,7 @@ import { FolderInfo as GoogleFolderInfo, getGoogleDriveConnection, updateFolderC
 interface ConnectedFoldersStatusProps {
   onConnectMore: () => void;
   onClose: () => void;
+  onViewPlaceFiles?: (folderType: 'strategy' | 'meetings' | 'financial' | 'projects') => void;
 }
 
 interface FolderInfo {
@@ -17,7 +18,7 @@ interface FolderInfo {
   documentCount: number;
 }
 
-export const ConnectedFoldersStatus: React.FC<ConnectedFoldersStatusProps> = ({ onConnectMore, onClose }) => {
+export const ConnectedFoldersStatus: React.FC<ConnectedFoldersStatusProps> = ({ onConnectMore, onClose, onViewPlaceFiles }) => {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [folders, setFolders] = useState<FolderInfo[]>([]);
@@ -277,13 +278,24 @@ export const ConnectedFoldersStatus: React.FC<ConnectedFoldersStatusProps> = ({ 
                   <p className="text-xs text-gray-400">documents</p>
                 </div>
               </div>
-              <button
-                onClick={() => handleChangeFolder(folder.type)}
-                className="w-full px-4 py-2 bg-blue-600/20 hover:bg-blue-600/30 border border-blue-600/50 text-blue-300 rounded-lg text-sm font-medium transition-all flex items-center justify-center space-x-2 min-h-[44px]"
-              >
-                <Edit2 className="w-4 h-4" />
-                <span>Change Folder</span>
-              </button>
+              <div className="flex gap-2">
+                {onViewPlaceFiles && (
+                  <button
+                    onClick={() => onViewPlaceFiles(folder.type)}
+                    className="flex-1 px-4 py-2 bg-green-600/20 hover:bg-green-600/30 border border-green-600/50 text-green-300 rounded-lg text-sm font-medium transition-all flex items-center justify-center space-x-2 min-h-[44px]"
+                  >
+                    <Info className="w-4 h-4" />
+                    <span>File Info</span>
+                  </button>
+                )}
+                <button
+                  onClick={() => handleChangeFolder(folder.type)}
+                  className={`${onViewPlaceFiles ? 'flex-1' : 'w-full'} px-4 py-2 bg-blue-600/20 hover:bg-blue-600/30 border border-blue-600/50 text-blue-300 rounded-lg text-sm font-medium transition-all flex items-center justify-center space-x-2 min-h-[44px]`}
+                >
+                  <Edit2 className="w-4 h-4" />
+                  <span>Change Folder</span>
+                </button>
+              </div>
             </div>
           ))}
         </div>

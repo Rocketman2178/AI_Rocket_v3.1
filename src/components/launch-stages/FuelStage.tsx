@@ -37,6 +37,7 @@ export const FuelStage: React.FC<FuelStageProps> = ({ progress, fuelProgress, bo
   const [driveFlowStep, setDriveFlowStep] = useState<'status' | 'connect' | 'choose-folder' | 'add-more-folders' | 'place-files' | 'sync-data'>('status');
   const [folderData, setFolderData] = useState<any>(null);
   const [newFolderTypes, setNewFolderTypes] = useState<('strategy' | 'meetings' | 'financial' | 'projects')[]>([]);
+  const [placeFilesForFolder, setPlaceFilesForFolder] = useState<'strategy' | 'meetings' | 'financial' | 'projects' | null>(null);
   const [checkingLevel, setCheckingLevel] = useState(false);
   const [hasGoogleDrive, setHasGoogleDrive] = useState(false);
   const [checkingDrive, setCheckingDrive] = useState(true);
@@ -626,6 +627,10 @@ export const FuelStage: React.FC<FuelStageProps> = ({ progress, fuelProgress, bo
                       await onRefresh();
                     }
                   }}
+                  onViewPlaceFiles={(folderType) => {
+                    setPlaceFilesForFolder(folderType);
+                    setDriveFlowStep('place-files');
+                  }}
                 />
               )}
               {driveFlowStep === 'connect' && (
@@ -676,10 +681,17 @@ export const FuelStage: React.FC<FuelStageProps> = ({ progress, fuelProgress, bo
                   onComplete={async () => {
                     // Move to sync step
                     setDriveFlowStep('sync-data');
+                    setPlaceFilesForFolder(null);
                     await persistFlowState('sync-data');
                   }}
+                  onGoBack={placeFilesForFolder ? () => {
+                    setDriveFlowStep('status');
+                    setPlaceFilesForFolder(null);
+                  } : undefined}
                   progress={null}
                   folderData={folderData}
+                  folderType={placeFilesForFolder || 'strategy'}
+                  forceChooseOption={!!placeFilesForFolder}
                 />
               )}
               {driveFlowStep === 'sync-data' && (
