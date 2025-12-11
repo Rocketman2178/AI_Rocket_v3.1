@@ -373,7 +373,7 @@ export const AddMoreFoldersStep: React.FC<AddMoreFoldersStepProps> = ({ onComple
                   <div className="flex-1">
                     <div className="flex items-center space-x-2 mb-1">
                       <h3 className="text-lg font-semibold text-white">{folder.label}</h3>
-                      {folder.alreadyConnected && (
+                      {(folder.alreadyConnected || folder.id) && (
                         <CheckCircle className="w-5 h-5 text-green-400" />
                       )}
                     </div>
@@ -385,22 +385,33 @@ export const AddMoreFoldersStep: React.FC<AddMoreFoldersStepProps> = ({ onComple
                         : 'Not connected yet'}
                     </p>
                   </div>
-                  <button
-                    onClick={() => openFolderSelector(folder.type)}
-                    disabled={folder.alreadyConnected}
-                    className={`px-4 py-2 rounded-lg font-medium transition-colors min-h-[44px] flex items-center gap-2 ${
-                      folder.alreadyConnected
-                        ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
-                        : folder.id
-                        ? 'bg-green-600 hover:bg-green-700 text-white'
-                        : 'bg-orange-600 hover:bg-orange-700 text-white'
-                    }`}
-                  >
-                    {folder.id && !folder.alreadyConnected && (
-                      <CheckCircle className="w-4 h-4" />
-                    )}
-                    {folder.id && !folder.alreadyConnected ? 'Change' : 'Select'}
-                  </button>
+                  {folder.alreadyConnected ? (
+                    <button
+                      disabled
+                      className="px-4 py-2 rounded-lg font-medium bg-gray-700 text-gray-500 cursor-not-allowed min-h-[44px]"
+                    >
+                      Select
+                    </button>
+                  ) : folder.id ? (
+                    <div className="flex flex-col items-center gap-1">
+                      <div className="w-10 h-10 rounded-full bg-green-600/20 flex items-center justify-center">
+                        <CheckCircle className="w-6 h-6 text-green-400" />
+                      </div>
+                      <button
+                        onClick={() => openFolderSelector(folder.type)}
+                        className="text-xs text-blue-400 hover:text-blue-300 underline transition-colors"
+                      >
+                        Select to Change
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => openFolderSelector(folder.type)}
+                      className="px-4 py-2 rounded-lg font-medium bg-orange-600 hover:bg-orange-700 text-white transition-colors min-h-[44px]"
+                    >
+                      Select
+                    </button>
+                  )}
                 </div>
               </div>
             ))}

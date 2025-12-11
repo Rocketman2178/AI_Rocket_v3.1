@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Folder, CheckCircle, Loader2, FolderPlus, FileText, Edit2, X, Search, FolderOpen, Info } from 'lucide-react';
+import { Folder, CheckCircle, Loader2, FolderPlus, FileText, Edit2, X, Search, FolderOpen, Info, RefreshCw } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { FolderInfo as GoogleFolderInfo, getGoogleDriveConnection, updateFolderConfiguration } from '../lib/google-drive-oauth';
+import { triggerIncrementalSync } from '../lib/manual-folder-sync';
 
 interface ConnectedFoldersStatusProps {
   onConnectMore: () => void;
@@ -29,6 +30,8 @@ export const ConnectedFoldersStatus: React.FC<ConnectedFoldersStatusProps> = ({ 
   const [availableFolders, setAvailableFolders] = useState<{ id: string; name: string }[]>([]);
   const [loadingFolders, setLoadingFolders] = useState(false);
   const [folderSearchTerm, setFolderSearchTerm] = useState('');
+  const [syncing, setSyncing] = useState(false);
+  const [syncMessage, setSyncMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   useEffect(() => {
     loadFolderStatus();
@@ -120,6 +123,70 @@ export const ConnectedFoldersStatus: React.FC<ConnectedFoldersStatusProps> = ({ 
       setError('Failed to load folder information');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSyncDocuments = async () => {
+    if (!user || syncing) return;
+
+    setSyncing(true);
+    setSyncMessage(null);
+    const totalInitial = folders.reduce((sum, f) => sum + f.documentCount, 0);
+
+    try {
+      const result = await triggerIncrementalSync();
+
+      if (result.success) {
+        setSyncMessage({ type: 'success', text: 'Syncing new documents...' });
+
+        let attemptCount = 0;
+        const maxAttempts = 60;
+
+        const pollForUpdates = setInterval(async () => {
+          attemptCount++;
+
+          await loadFolderStatus();
+
+          const { data: userData } = await supabase
+            .from('users')
+            .select('team_id')
+            .eq('id', user.id)
+            .single();
+
+          if (userData?.team_id) {
+            const { count } = await supabase
+              .from('documents')
+              .select('*', { count: 'exact', head: true })
+              .eq('team_id', userData.team_id);
+
+            const currentTotal = count || 0;
+
+            if (currentTotal > totalInitial) {
+              clearInterval(pollForUpdates);
+              setSyncing(false);
+              setSyncMessage({ type: 'success', text: `Sync complete! ${currentTotal - totalInitial} new documents added.` });
+              setTimeout(() => setSyncMessage(null), 3000);
+              return;
+            }
+          }
+
+          if (attemptCount >= maxAttempts) {
+            clearInterval(pollForUpdates);
+            setSyncing(false);
+            setSyncMessage({ type: 'success', text: 'Sync complete!' });
+            setTimeout(() => setSyncMessage(null), 3000);
+          }
+        }, 2000);
+      } else {
+        setSyncing(false);
+        setSyncMessage({ type: 'error', text: result.message || 'Failed to start sync.' });
+        setTimeout(() => setSyncMessage(null), 5000);
+      }
+    } catch (error) {
+      console.error('Sync error:', error);
+      setSyncing(false);
+      setSyncMessage({ type: 'error', text: 'Failed to sync. Please try again.' });
+      setTimeout(() => setSyncMessage(null), 5000);
     }
   };
 
@@ -324,6 +391,19 @@ export const ConnectedFoldersStatus: React.FC<ConnectedFoldersStatusProps> = ({ 
         </div>
       )}
 
+      {/* Sync Message */}
+      {syncMessage && (
+        <div className={`p-3 rounded-lg ${
+          syncMessage.type === 'success' ? 'bg-green-900/20 border border-green-700' : 'bg-red-900/20 border border-red-700'
+        }`}>
+          <p className={`text-sm text-center ${
+            syncMessage.type === 'success' ? 'text-green-300' : 'text-red-300'
+          }`}>
+            {syncMessage.text}
+          </p>
+        </div>
+      )}
+
       {/* Action Buttons */}
       <div className="flex flex-col space-y-3 pt-4">
         {unconnectedFolders.length > 0 && (
@@ -333,6 +413,17 @@ export const ConnectedFoldersStatus: React.FC<ConnectedFoldersStatusProps> = ({ 
           >
             <FolderPlus className="w-5 h-5" />
             <span>Connect More Folders</span>
+          </button>
+        )}
+
+        {connectedFolders.length > 0 && (
+          <button
+            onClick={handleSyncDocuments}
+            disabled={syncing}
+            className="w-full px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors flex items-center justify-center space-x-2 disabled:opacity-50"
+          >
+            <RefreshCw className={`w-5 h-5 ${syncing ? 'animate-spin' : ''}`} />
+            <span>{syncing ? 'Syncing...' : 'Sync Now'}</span>
           </button>
         )}
 

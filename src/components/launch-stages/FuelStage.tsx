@@ -256,6 +256,7 @@ export const FuelStage: React.FC<FuelStageProps> = ({ progress, fuelProgress, bo
 
     setSyncing(true);
     setSyncMessage(null);
+    const initialTotal = counts.total;
 
     try {
       const result = await triggerIncrementalSync();
@@ -263,15 +264,42 @@ export const FuelStage: React.FC<FuelStageProps> = ({ progress, fuelProgress, bo
       if (result.success) {
         setSyncMessage({ type: 'success', text: 'Syncing new documents...' });
 
-        setTimeout(async () => {
+        let attemptCount = 0;
+        const maxAttempts = 60;
+
+        const pollForUpdates = setInterval(async () => {
+          attemptCount++;
+
           await refreshCounts();
           if (onRefresh) {
             await onRefresh();
           }
-          setSyncing(false);
-          setSyncMessage({ type: 'success', text: 'Sync complete! Documents updated.' });
-          setTimeout(() => setSyncMessage(null), 3000);
-        }, 10000);
+
+          const teamId = user?.user_metadata?.team_id;
+          if (teamId) {
+            const { count } = await supabase
+              .from('documents')
+              .select('*', { count: 'exact', head: true })
+              .eq('team_id', teamId);
+
+            const currentTotal = count || 0;
+
+            if (currentTotal > initialTotal) {
+              clearInterval(pollForUpdates);
+              setSyncing(false);
+              setSyncMessage({ type: 'success', text: `Sync complete! ${currentTotal - initialTotal} new documents added.` });
+              setTimeout(() => setSyncMessage(null), 3000);
+              return;
+            }
+          }
+
+          if (attemptCount >= maxAttempts) {
+            clearInterval(pollForUpdates);
+            setSyncing(false);
+            setSyncMessage({ type: 'success', text: 'Sync complete!' });
+            setTimeout(() => setSyncMessage(null), 3000);
+          }
+        }, 2000);
       } else {
         setSyncing(false);
         setSyncMessage({ type: 'error', text: result.message || 'Failed to start sync.' });
